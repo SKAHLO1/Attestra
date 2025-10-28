@@ -10,12 +10,12 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "LineraProof - Verifiable On-Chain Attendance",
+  title: "Provera - Verifiable On-Chain Attendance",
   description: "Issue and claim verifiable attendance badges on the Linera blockchain. Powered by microchains for instant, secure event verification.",
   keywords: ["blockchain", "linera", "attendance", "badges", "web3", "NFT", "proof of attendance"],
-  authors: [{ name: "LineraProof" }],
+  authors: [{ name: "Provera" }],
   openGraph: {
-    title: "LineraProof - Verifiable On-Chain Attendance",
+    title: "Provera - Verifiable On-Chain Attendance",
     description: "Issue and claim verifiable attendance badges on the Linera blockchain.",
     type: "website",
   },
