@@ -1,11 +1,11 @@
-# LineraProof 🪪
+# Provera 🪪
 
-![LineraProof Banner](https://img.shields.io/badge/Linera-Proof-blueviolet?style=for-the-badge)
+![Provera Banner](https://img.shields.io/badge/Provera-Attendance-blueviolet?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-16.0-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.1-06B6D4?style=for-the-badge&logo=tailwindcss)
 
-**LineraProof** is a decentralized application (dApp) for issuing and claiming verifiable on-chain attendance badges, built on the [Linera](https://linera.io) blockchain network. Event organizers can create events and distribute proof-of-attendance badges, while attendees can claim and showcase their badges in a beautiful portfolio.
+**Provera** is a decentralized application (dApp) for issuing and claiming verifiable on-chain attendance badges, built on the [Linera](https://linera.io) blockchain network. Event organizers can create events and distribute proof-of-attendance badges, while attendees can claim and showcase their badges in a beautiful portfolio.
 
 ## ✨ Features
 
@@ -132,7 +132,7 @@ linera-proof/
 ## 🎨 Features Deep Dive
 
 ### Theme System
-LineraProof supports both light and dark modes with:
+Provera supports both light and dark modes with:
 - System preference detection
 - Manual toggle in header
 - Smooth transitions between themes
