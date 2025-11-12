@@ -26,6 +26,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# rust
+/contract/target/
+**/*.rs.bk
+*.pdb
+
 #readme files
 CHANGES_SUMMARY.md
 CONWAY_TESTNET_SETUP.md

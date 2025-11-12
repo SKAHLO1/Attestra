@@ -2,6 +2,8 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useCallback } from "react"
+import { getLineraClient } from "./linera"
+import type { LineraWalletInfo } from "./linera/types"
 
 export type WalletType = "metamask" | "walletconnect" | "coinbase" | "linera"
 
@@ -9,7 +11,7 @@ export interface WalletAccount {
   address: string
   type: WalletType
   balance?: string
-  chainId?: number
+  chainId?: string | number
 }
 
 interface WalletContextType {
@@ -19,6 +21,7 @@ interface WalletContextType {
   connect: (type: WalletType) => Promise<void>
   disconnect: () => void
   switchChain: (chainId: number) => Promise<void>
+  lineraClient?: ReturnType<typeof getLineraClient>
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined)
@@ -26,32 +29,49 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined)
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<WalletAccount | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [lineraClient] = useState(() => getLineraClient())
 
   const connect = useCallback(async (type: WalletType) => {
     setIsConnecting(true)
     try {
-      // Simulate wallet connection with different types
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      if (type === "linera") {
+        // Use real Linera wallet integration
+        const walletInfo: LineraWalletInfo = await lineraClient.connect()
+        
+        setAccount({
+          address: walletInfo.address,
+          type: "linera",
+          balance: walletInfo.balance,
+          chainId: walletInfo.chainId,
+        })
+      } else {
+        // Fallback to mock for other wallet types (for demo purposes)
+        await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      const mockAddress = "0x" + Math.random().toString(16).slice(2, 10).toUpperCase()
-      const mockBalance = (Math.random() * 10).toFixed(2)
+        const mockAddress = "0x" + Math.random().toString(16).slice(2, 10).toUpperCase()
+        const mockBalance = (Math.random() * 10).toFixed(2)
 
-      setAccount({
-        address: mockAddress,
-        type,
-        balance: mockBalance,
-        chainId: 1,
-      })
+        setAccount({
+          address: mockAddress,
+          type,
+          balance: mockBalance,
+          chainId: 1,
+        })
+      }
     } catch (error) {
       console.error("Failed to connect wallet:", error)
+      throw error
     } finally {
       setIsConnecting(false)
     }
-  }, [])
+  }, [lineraClient])
 
   const disconnect = useCallback(() => {
+    if (account?.type === "linera") {
+      lineraClient.disconnect()
+    }
     setAccount(null)
-  }, [])
+  }, [lineraClient, account])
 
   const switchChain = useCallback(
     async (chainId: number) => {
@@ -76,6 +96,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         connect,
         disconnect,
         switchChain,
+        lineraClient,
       }}
     >
       {children}
