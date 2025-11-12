@@ -1,51 +1,44 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import EventForm from "./event-form"
 import EventList from "./event-list"
+import { useEventInfo } from "@/lib/linera"
+import { getApplicationId } from "@/lib/config"
 
 interface OrganizerDashboardProps {
   wallet: string | null
 }
 
 export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) {
-  const [events, setEvents] = useState([
-    {
-      id: "1",
-      name: "Linera Hackathon 2025",
-      microchainId: "mc_linera_hack_2025",
-      badgesMinted: 42,
-      attendees: 42,
-      status: "active",
-      createdAt: new Date("2025-01-15"),
-    },
-    {
-      id: "2",
-      name: "Web3 Developer Meetup",
-      microchainId: "mc_web3_meetup_jan",
-      badgesMinted: 28,
-      attendees: 30,
-      status: "active",
-      createdAt: new Date("2025-01-10"),
-    },
-  ])
-
+  const applicationId = getApplicationId()
+  const { eventInfo, loading, error, refetch } = useEventInfo(applicationId)
+  
+  const [events, setEvents] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
 
-  const handleCreateEvent = (eventData: any) => {
-    const newEvent = {
-      id: String(events.length + 1),
-      name: eventData.name,
-      microchainId: `mc_${eventData.name.toLowerCase().replace(/\s+/g, "_")}_${Date.now()}`,
-      badgesMinted: 0,
-      attendees: 0,
-      status: "active",
-      createdAt: new Date(),
+  // Convert event info to events array (for now, single event)
+  useEffect(() => {
+    if (eventInfo) {
+      setEvents([{
+        id: "1",
+        name: eventInfo.eventName,
+        microchainId: applicationId.slice(0, 20) + "...",
+        badgesMinted: eventInfo.mintedCount,
+        attendees: eventInfo.mintedCount, // Each mint = 1 attendee
+        status: eventInfo.isActive ? "active" : "inactive",
+        createdAt: new Date(eventInfo.eventDate / 1000), // Convert from microseconds
+      }])
     }
-    setEvents([newEvent, ...events])
+  }, [eventInfo, applicationId])
+
+  const handleCreateEvent = (eventData: any) => {
+    // Event creation is handled by the EventForm component
+    // Just close the form and refetch
     setShowForm(false)
+    setTimeout(() => refetch(), 2000)
   }
 
   if (!wallet) {
@@ -77,8 +70,37 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
 
       {showForm && (
         <div className="animate-in slide-in-from-top duration-300">
-          <EventForm onSubmit={handleCreateEvent} />
+          <EventForm 
+            onSubmit={handleCreateEvent} 
+            onSuccess={() => {
+              setShowForm(false)
+              setTimeout(() => refetch(), 2000)
+            }} 
+          />
         </div>
+      )}
+
+      {loading && (
+        <Card>
+          <CardContent className="pt-8 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+              </svg>
+              <p className="text-muted-foreground">Loading event data from blockchain...</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {error && (
+        <Card className="border-yellow-500/50">
+          <CardContent className="pt-6">
+            <p className="text-yellow-700 mb-2 font-medium">⚠️ No event found</p>
+            <p className="text-sm text-muted-foreground">Create your first event to get started, or ensure your Application ID is correctly configured.</p>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
