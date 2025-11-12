@@ -6,7 +6,13 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "contract:build": "cd contract && cargo build --release --target wasm32-unknown-unknown",
+    "contract:deploy": "bash scripts/deploy-contract.sh",
+    "linera:setup": "bash scripts/setup-local-network.sh",
+    "linera:status": "linera net status",
+    "linera:down": "linera net down",
+    "generate:codes": "node scripts/generate-claim-codes.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
