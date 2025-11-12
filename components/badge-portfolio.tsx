@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { useAllEventBadges } from "@/lib/linera"
+import { getApplicationId } from "@/lib/config"
+import type { EventCategory } from "@/lib/linera/types"
 
 interface BadgeData {
   id: string
@@ -37,61 +40,42 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedBadge, setSelectedBadge] = useState<BadgeData | null>(null)
+  
+  const applicationId = getApplicationId()
+  const { badges: lineraBadges, loading, error } = useAllEventBadges(applicationId)
 
-  const badges: BadgeData[] = [
-    {
-      id: "1",
-      eventName: "Linera Hackathon 2025",
-      issuer: "Linera Foundation",
-      claimedAt: new Date("2025-01-15"),
-      image: "🏆",
-      verified: true,
-      category: "hackathon",
-      txHash: "0x1234567890abcdef",
-      contractAddress: "0xabcdef1234567890",
-      tokenId: "1",
-      description: "Awarded for outstanding contribution to the Linera ecosystem during the 2025 hackathon",
-    },
-    {
-      id: "2",
-      eventName: "Web3 Developer Meetup",
-      issuer: "Web3 Community",
-      claimedAt: new Date("2025-01-10"),
-      image: "🎓",
-      verified: true,
-      category: "meetup",
-      txHash: "0xfedcba0987654321",
-      contractAddress: "0x1234567890abcdef",
-      tokenId: "2",
-      description: "Participation badge for attending the Web3 Developer Meetup January 2025",
-    },
-    {
-      id: "3",
-      eventName: "Blockchain Conference 2025",
-      issuer: "Tech Events Inc",
-      claimedAt: new Date("2024-12-20"),
-      image: "🌐",
-      verified: true,
-      category: "conference",
-      txHash: "0xabcdef9876543210",
-      contractAddress: "0xfedcba0987654321",
-      tokenId: "3",
-      description: "Attendee badge for Blockchain Conference 2025 - 3 day pass",
-    },
-    {
-      id: "4",
-      eventName: "Smart Contract Security Workshop",
-      issuer: "Security Labs",
-      claimedAt: new Date("2024-12-10"),
-      image: "🔒",
-      verified: true,
-      category: "workshop",
-      txHash: "0x9876543210fedcba",
-      contractAddress: "0x9876543210fedcba",
-      tokenId: "4",
-      description: "Completion badge for Smart Contract Security Workshop",
-    },
-  ]
+  // Convert Linera badges to BadgeData format
+  const badges: BadgeData[] = useMemo(() => {
+    if (!lineraBadges) return []
+    
+    return lineraBadges.map((badge) => {
+      const categoryLowercase = badge.category.toLowerCase() as "conference" | "hackathon" | "meetup" | "workshop"
+      
+      return {
+        id: badge.tokenId.toString(),
+        eventName: badge.eventName,
+        issuer: badge.owner.slice(0, 10) + '...',
+        claimedAt: new Date(badge.claimedAt),
+        image: getCategoryEmoji(badge.category),
+        verified: true,
+        category: categoryLowercase,
+        txHash: `Token ID: ${badge.tokenId}`,
+        contractAddress: applicationId,
+        tokenId: badge.tokenId.toString(),
+        description: `Proof of attendance badge for ${badge.eventName}`,
+      }
+    })
+  }, [lineraBadges, applicationId])
+
+  const getCategoryEmoji = (category: EventCategory) => {
+    const categoryMap: Record<string, string> = {
+      Conference: '🌐',
+      Hackathon: '🏆',
+      Meetup: '🎓',
+      Workshop: '🔒',
+    }
+    return categoryMap[category] || '🎫'
+  }
 
   const filteredBadges = badges.filter((badge) => {
     const matchesCategory = selectedCategory === "all" || badge.category === selectedCategory
@@ -129,6 +113,33 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
       <Card className="border-2 border-dashed">
         <CardContent className="pt-8 text-center">
           <p className="text-muted-foreground mb-4">Please connect your wallet to view your badge portfolio</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="pt-8 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+            </svg>
+            <p className="text-muted-foreground">Loading badges from blockchain...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="border-destructive/50">
+        <CardContent className="pt-8 text-center">
+          <p className="text-destructive mb-2">Failed to load badges</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
         </CardContent>
       </Card>
     )
