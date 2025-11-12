@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useEventOperations, useUserBadges } from "@/lib/linera"
+import { getApplicationId } from "@/lib/config"
 
 interface ClaimedBadge {
   id: string
@@ -32,49 +34,71 @@ interface AttendeePortalProps {
 }
 
 export default function AttendeePortal({ wallet }: AttendeePortalProps) {
+  const applicationId = getApplicationId()
+  const { claimBadge, validateClaimCode, loading, error } = useEventOperations(applicationId)
+  const { badges: userBadges, refetch } = useUserBadges(applicationId)
+  
   const [claimCode, setClaimCode] = useState("")
-  const [claimedBadges, setClaimedBadges] = useState<ClaimedBadge[]>([
-    {
-      id: "1",
-      eventName: "Linera Hackathon 2025",
-      claimedAt: new Date("2025-01-15"),
-      txHash: "0x1234...5678",
-      claimCode: "LINERA-2025-ABC123",
-      status: "confirmed",
-    },
-  ])
-  const [isLoading, setIsLoading] = useState(false)
+  const [claimedBadges, setClaimedBadges] = useState<ClaimedBadge[]>([])
   const [showQRScanner, setShowQRScanner] = useState(false)
   const [selectedBadge, setSelectedBadge] = useState<ClaimedBadge | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [claimStatus, setClaimStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Convert blockchain badges to ClaimedBadge format
+  useEffect(() => {
+    if (userBadges) {
+      const converted: ClaimedBadge[] = userBadges.map((badge) => ({
+        id: badge.tokenId.toString(),
+        eventName: badge.eventName,
+        claimedAt: new Date(badge.claimedAt),
+        txHash: `Token #${badge.tokenId}`,
+        claimCode: "Claimed",
+        status: "confirmed" as const,
+      }))
+      setClaimedBadges(converted)
+    }
+  }, [userBadges])
+
   const handleQRScan = () => {
-    // Simulate QR code scan - in production, would use a QR scanner library
+    // TODO: Implement QR scanner library (e.g., react-qr-reader)
+    // For now, simulate a scan
     const simulatedCode = "LINERA-2025-" + Math.random().toString(36).substring(2, 8).toUpperCase()
     setClaimCode(simulatedCode)
     setShowQRScanner(false)
+    // In production, this would open camera and scan QR code
   }
 
   const handleClaimBadge = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!claimCode.trim()) return
 
-    setIsLoading(true)
-    // Simulate badge claim with network delay
-    setTimeout(() => {
-      const newBadge: ClaimedBadge = {
-        id: String(claimedBadges.length + 1),
-        eventName: `Event from code: ${claimCode.slice(0, 8)}...`,
-        claimedAt: new Date(),
-        txHash: "0x" + Math.random().toString(16).slice(2, 10),
-        claimCode: claimCode,
-        status: "confirmed",
+    setClaimStatus(null)
+
+    try {
+      const result = await claimBadge(claimCode)
+      
+      if (result.success) {
+        setClaimStatus({ 
+          type: 'success', 
+          message: `Badge claimed successfully! TX: ${result.txHash?.slice(0, 10)}...` 
+        })
+        setClaimCode("")
+        // Refresh badge list
+        setTimeout(() => refetch(), 2000)
+      } else {
+        setClaimStatus({ 
+          type: 'error', 
+          message: result.error || 'Failed to claim badge' 
+        })
       }
-      setClaimedBadges([newBadge, ...claimedBadges])
-      setClaimCode("")
-      setIsLoading(false)
-    }, 1500)
+    } catch (error: any) {
+      setClaimStatus({ 
+        type: 'error', 
+        message: error.message || 'Failed to claim badge' 
+      })
+    }
   }
 
   const handleDeleteBadge = (badge: ClaimedBadge) => {
@@ -151,18 +175,30 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                   />
                 </div>
 
+                {claimStatus && (
+                  <div className={`p-3 rounded-lg border ${
+                    claimStatus.type === 'success' 
+                      ? 'bg-green-500/10 border-green-500/30' 
+                      : 'bg-destructive/10 border-destructive/30'
+                  }`}>
+                    <p className={`text-sm ${
+                      claimStatus.type === 'success' ? 'text-green-700' : 'text-destructive'
+                    }`}>{claimStatus.message}</p>
+                  </div>
+                )}
+
                 <Button
                   type="submit"
-                  disabled={isLoading || !claimCode.trim()}
+                  disabled={loading || !claimCode.trim()}
                   className="w-full bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
                 >
-                  {isLoading ? (
+                  {loading ? (
                     <span className="flex items-center gap-2">
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                       </svg>
-                      Claiming Badge...
+                      Claiming Badge on Blockchain...
                     </span>
                   ) : "Claim Badge"}
                 </Button>
@@ -189,8 +225,8 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                   <p className="text-sm text-muted-foreground text-center mb-4">
                     Click the button below to scan a QR code
                   </p>
-                  <Button onClick={handleQRScan} disabled={isLoading} className="bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity shadow-lg shadow-accent/20">
-                    {isLoading ? "Processing..." : "Scan QR Code"}
+                  <Button onClick={handleQRScan} disabled={loading} className="bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity shadow-lg shadow-accent/20">
+                    {loading ? "Processing..." : "Scan QR Code (Demo)"}
                   </Button>
                 </div>
 
@@ -202,13 +238,26 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                 )}
 
                 {claimCode && (
-                  <Button
-                    onClick={handleClaimBadge}
-                    disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
-                  >
-                    {isLoading ? "Claiming Badge..." : "Claim Badge"}
-                  </Button>
+                  <>
+                    {claimStatus && (
+                      <div className={`p-3 rounded-lg border ${
+                        claimStatus.type === 'success' 
+                          ? 'bg-green-500/10 border-green-500/30' 
+                          : 'bg-destructive/10 border-destructive/30'
+                      }`}>
+                        <p className={`text-sm ${
+                          claimStatus.type === 'success' ? 'text-green-700' : 'text-destructive'
+                        }`}>{claimStatus.message}</p>
+                      </div>
+                    )}
+                    <Button
+                      onClick={(e) => { e.preventDefault(); handleClaimBadge(e as any); }}
+                      disabled={loading}
+                      className="w-full bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity shadow-lg shadow-accent/20"
+                    >
+                      {loading ? "Claiming Badge..." : "Claim Badge"}
+                    </Button>
+                  </>
                 )}
               </div>
             </CardContent>
