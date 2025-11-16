@@ -12,6 +12,19 @@ import type {
   TransactionResponse,
 } from "./types";
 
+// Import the wallet context to get shared client instance
+let sharedWalletContext: any = null;
+if (typeof window !== "undefined") {
+  try {
+    // Dynamically import to avoid circular dependencies
+    import("../wallet-context").then((module) => {
+      sharedWalletContext = module;
+    });
+  } catch (e) {
+    console.warn("Could not load wallet context");
+  }
+}
+
 /**
  * Hook to manage Linera wallet connection
  */
@@ -59,10 +72,24 @@ export function useLineraWallet() {
  * Hook to fetch event information
  */
 export function useEventInfo(applicationId?: string) {
-  const { client, isConnected } = useLineraWallet();
+  const [client] = useState<LineraClient>(() => getLineraClient());
   const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [isConnected, setIsConnected] = useState(false);
+  
+  useEffect(() => {
+    const checkConnection = () => {
+      const chainId = client.getChainId();
+      setIsConnected(!!chainId);
+    };
+    
+    checkConnection();
+    const interval = setInterval(checkConnection, 1000);
+    
+    return () => clearInterval(interval);
+  }, [client]);
 
   const fetchEventInfo = useCallback(async () => {
     if (!isConnected || !applicationId) return;
@@ -71,7 +98,7 @@ export function useEventInfo(applicationId?: string) {
     setError(null);
 
     try {
-      client.setApplicationId(applicationId);
+      await client.setApplicationId(applicationId);
       const info = await client.getEventInfo();
       setEventInfo(info);
     } catch (err: any) {
@@ -97,27 +124,44 @@ export function useEventInfo(applicationId?: string) {
  * Hook to fetch user's badges
  */
 export function useUserBadges(applicationId?: string) {
-  const { client, isConnected, walletInfo } = useLineraWallet();
+  const [client] = useState<LineraClient>(() => getLineraClient());
   const [badges, setBadges] = useState<BadgeInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [isConnected, setIsConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const checkConnection = () => {
+      const chainId = client.getChainId();
+      const address = client.getAddress();
+      setIsConnected(!!chainId);
+      setWalletAddress(address);
+    };
+    
+    checkConnection();
+    const interval = setInterval(checkConnection, 1000);
+    
+    return () => clearInterval(interval);
+  }, [client]);
 
   const fetchBadges = useCallback(async () => {
-    if (!isConnected || !walletInfo || !applicationId) return;
+    if (!isConnected || !walletAddress || !applicationId) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      client.setApplicationId(applicationId);
-      const badge = await client.getBadgeByOwner(walletInfo.address);
+      await client.setApplicationId(applicationId);
+      const badge = await client.getBadgeByOwner(walletAddress);
       setBadges(badge ? [badge] : []);
     } catch (err: any) {
       setError(err.message || "Failed to fetch badges");
     } finally {
       setLoading(false);
     }
-  }, [client, isConnected, walletInfo, applicationId]);
+  }, [client, isConnected, walletAddress, applicationId]);
 
   useEffect(() => {
     fetchBadges();
@@ -135,10 +179,24 @@ export function useUserBadges(applicationId?: string) {
  * Hook to fetch all badges for an event
  */
 export function useAllEventBadges(applicationId?: string) {
-  const { client, isConnected } = useLineraWallet();
+  const [client] = useState<LineraClient>(() => getLineraClient());
   const [badges, setBadges] = useState<BadgeInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [isConnected, setIsConnected] = useState(false);
+  
+  useEffect(() => {
+    const checkConnection = () => {
+      const chainId = client.getChainId();
+      setIsConnected(!!chainId);
+    };
+    
+    checkConnection();
+    const interval = setInterval(checkConnection, 1000);
+    
+    return () => clearInterval(interval);
+  }, [client]);
 
   const fetchAllBadges = useCallback(async () => {
     if (!isConnected || !applicationId) return;
@@ -147,7 +205,7 @@ export function useAllEventBadges(applicationId?: string) {
     setError(null);
 
     try {
-      client.setApplicationId(applicationId);
+      await client.setApplicationId(applicationId);
       const allBadges = await client.getAllBadges();
       setBadges(allBadges);
     } catch (err: any) {
@@ -173,15 +231,34 @@ export function useAllEventBadges(applicationId?: string) {
  * Hook for event operations
  */
 export function useEventOperations(applicationId?: string) {
-  const { client, isConnected } = useLineraWallet();
+  // Get the shared client instance from singleton
+  const [client] = useState<LineraClient>(() => getLineraClient());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Check if wallet is connected by checking if client has a chain ID
+  const [isConnected, setIsConnected] = useState(false);
+  
+  useEffect(() => {
+    // Check connection status from the client and poll for changes
+    const checkConnection = () => {
+      const chainId = client.getChainId();
+      setIsConnected(!!chainId);
+    };
+    
+    checkConnection();
+    
+    // Poll every 1 second to detect wallet connection changes
+    const interval = setInterval(checkConnection, 1000);
+    
+    return () => clearInterval(interval);
+  }, [client]);
 
   useEffect(() => {
-    if (applicationId) {
+    if (applicationId && isConnected) {
       client.setApplicationId(applicationId);
     }
-  }, [client, applicationId]);
+  }, [client, applicationId, isConnected]);
 
   const createEvent = useCallback(
     async (params: CreateEventParams): Promise<TransactionResponse> => {

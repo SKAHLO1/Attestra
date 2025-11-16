@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useEventOperations } from "@/lib/linera"
 import { getApplicationId } from "@/lib/config"
 import { EventCategory } from "@/lib/linera/types"
+import { useWallet } from "@/lib/wallet-context"
 
 interface EventFormProps {
   onSubmit: (data: any) => void
@@ -20,6 +21,7 @@ interface EventFormProps {
 export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
   const applicationId = getApplicationId()
   const { createEvent, loading: creating, error: createError } = useEventOperations(applicationId)
+  const { account, isConnected } = useWallet()
   
   const [formData, setFormData] = useState({
     eventName: "",
@@ -46,6 +48,8 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
         ? new Date(formData.eventDate).getTime() * 1000 
         : Date.now() * 1000
 
+      console.log("Attempting to create event...", formData)
+      
       const result = await createEvent({
         eventName: formData.eventName,
         description: formData.description,
@@ -55,6 +59,8 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
         badgeMetadataUri: formData.badgeMetadataUri || "ipfs://default",
         maxSupply: formData.maxSupply,
       })
+
+      console.log("Event creation result:", result)
 
       if (result.success) {
         setSuccessMessage(`Event created successfully! TX: ${result.txHash?.slice(0, 10)}...`)
@@ -74,6 +80,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
       }
     } catch (error: any) {
       console.error("Failed to create event:", error)
+      // Error will be shown via createError state from hook
     } finally {
       setIsSubmitting(false)
     }
@@ -173,6 +180,12 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
             <p className="text-xs text-muted-foreground mt-1">Leave empty for default badge image</p>
           </div>
 
+          {!isConnected && (
+            <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              <p className="text-sm text-yellow-700">⚠️ Wallet not connected. Please connect your Linera wallet first.</p>
+            </div>
+          )}
+
           {successMessage && (
             <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
               <p className="text-sm text-green-700">{successMessage}</p>
@@ -181,14 +194,17 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
 
           {createError && (
             <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-              <p className="text-sm text-destructive">{createError}</p>
+              <p className="text-sm text-destructive font-semibold">Error: {createError}</p>
+              {!isConnected && (
+                <p className="text-xs text-destructive/80 mt-1">Make sure your Linera wallet is connected.</p>
+              )}
             </div>
           )}
 
           <div className="flex gap-3 pt-4">
             <Button 
               type="submit" 
-              disabled={isSubmitting || creating || !formData.eventName.trim()}
+              disabled={isSubmitting || creating || !formData.eventName.trim() || !isConnected}
               className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90"
             >
               {isSubmitting || creating ? (

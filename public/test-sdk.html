@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linera SDK Test Page</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        pre {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #1f2937;
+            color: #10b981;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+        h1 {
+            color: #1f2937;
+        }
+        h2 {
+            color: #374151;
+            font-size: 18px;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Linera SDK Test Page</h1>
+    
+    <div class="card">
+        <h2>SDK Status</h2>
+        <div>
+            <strong>SDK Loaded:</strong> 
+            <span id="sdk-status" class="status pending">Checking...</span>
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>SDK Version:</strong> 
+            <span id="sdk-version">-</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Wallet Connection</h2>
+        <button id="connect-btn" onclick="connectWallet()">Connect Wallet (Faucet)</button>
+        <div style="margin-top: 15px;">
+            <strong>Status:</strong> 
+            <span id="wallet-status" class="status pending">Not Connected</span>
+        </div>
+        <div id="wallet-info" style="margin-top: 10px; display: none;">
+            <strong>Chain ID:</strong>
+            <pre id="chain-id">-</pre>
+            <strong>Wallet Address:</strong>
+            <pre id="wallet-address">-</pre>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Application Test</h2>
+        <input type="text" id="app-id" placeholder="Application ID" 
+               style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; margin-bottom: 10px;"
+               value="e476187f6ddfeb9d588c7e2d2c33e66b63cc3c8e8ab37">
+        <button id="query-btn" onclick="testQuery()" disabled>Test Query</button>
+        <button id="mutation-btn" onclick="testMutation()" disabled>Test Mutation</button>
+        <div id="test-result" style="margin-top: 15px; display: none;">
+            <strong>Result:</strong>
+            <pre id="result-data">-</pre>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Console Logs</h2>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <div id="log-container" class="log"></div>
+    </div>
+
+    <script src="/linera-sdk-loader.js"></script>
+    <script>
+        let client = null;
+        let wallet = null;
+        const logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = `[${timestamp}] ${message}`;
+            logs.push(entry);
+            
+            const logContainer = document.getElementById('log-container');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = entry;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            console.log(message);
+        }
+
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = '';
+            logs.length = 0;
+        }
+
+        async function checkSDK() {
+            addLog('Checking for Linera SDK...');
+            
+            if (window.linera && window.lineraReady) {
+                document.getElementById('sdk-status').className = 'status success';
+                document.getElementById('sdk-status').textContent = 'Loaded ✓';
+                document.getElementById('sdk-version').textContent = 'Mock SDK v1.0 (Development)';
+                addLog('SDK loaded successfully!');
+                
+                // Initialize SDK
+                try {
+                    await window.linera.default();
+                    addLog('WASM initialized');
+                } catch (e) {
+                    addLog('WASM init skipped (mock mode)');
+                }
+            } else {
+                document.getElementById('sdk-status').className = 'status error';
+                document.getElementById('sdk-status').textContent = 'Not Loaded ✗';
+                addLog('ERROR: SDK not loaded', 'error');
+            }
+        }
+
+        async function connectWallet() {
+            addLog('Connecting wallet via faucet...');
+            const btn = document.getElementById('connect-btn');
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
+            
+            try {
+                const faucet = await new window.linera.Faucet(
+                    'https://faucet.testnet-conway.linera.net'
+                );
+                addLog('Faucet initialized');
+                
+                wallet = await faucet.createWallet();
+                addLog('Wallet created');
+                
+                client = await new window.linera.Client(wallet);
+                addLog('Client created');
+                
+                const chainId = await faucet.claimChain(client);
+                addLog(`Chain claimed: ${chainId}`);
+                
+                // Update UI
+                document.getElementById('wallet-status').className = 'status success';
+                document.getElementById('wallet-status').textContent = 'Connected ✓';
+                document.getElementById('wallet-info').style.display = 'block';
+                document.getElementById('chain-id').textContent = chainId;
+                document.getElementById('wallet-address').textContent = wallet.address || chainId;
+                
+                // Enable test buttons
+                document.getElementById('query-btn').disabled = false;
+                document.getElementById('mutation-btn').disabled = false;
+                
+                btn.textContent = 'Connected!';
+                addLog('✓ Wallet connected successfully!');
+                
+            } catch (error) {
+                addLog(`ERROR: ${error.message}`, 'error');
+                document.getElementById('wallet-status').className = 'status error';
+                document.getElementById('wallet-status').textContent = 'Failed ✗';
+                btn.disabled = false;
+                btn.textContent = 'Retry Connection';
+            }
+        }
+
+        async function testQuery() {
+            if (!client) {
+                addLog('ERROR: Connect wallet first', 'error');
+                return;
+            }
+            
+            addLog('Testing GraphQL query...');
+            const appId = document.getElementById('app-id').value;
+            
+            try {
+                const backend = await client.frontend().application(appId);
+                addLog(`Connected to app: ${appId}`);
+                
+                const query = `
+                    query {
+                        eventInfo {
+                            eventName
+                            mintedCount
+                            maxSupply
+                            isActive
+                        }
+                    }
+                `;
+                
+                const response = await backend.query(JSON.stringify({ query }));
+                const result = JSON.parse(response);
+                
+                document.getElementById('test-result').style.display = 'block';
+                document.getElementById('result-data').textContent = JSON.stringify(result, null, 2);
+                
+                addLog('✓ Query successful!');
+            } catch (error) {
+                addLog(`ERROR: ${error.message}`, 'error');
+                document.getElementById('test-result').style.display = 'block';
+                document.getElementById('result-data').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function testMutation() {
+            if (!client) {
+                addLog('ERROR: Connect wallet first', 'error');
+                return;
+            }
+            
+            addLog('Testing GraphQL mutation...');
+            const appId = document.getElementById('app-id').value;
+            
+            try {
+                const backend = await client.frontend().application(appId);
+                
+                const mutation = `
+                    mutation {
+                        createEvent(
+                            eventName: "Test Event",
+                            description: "SDK Test",
+                            eventDate: "${Date.now() * 1000}",
+                            location: "Virtual",
+                            category: "Meetup",
+                            badgeMetadataUri: "ipfs://test",
+                            maxSupply: 100
+                        )
+                    }
+                `;
+                
+                const response = await backend.query(JSON.stringify({ query: mutation }));
+                const result = JSON.parse(response);
+                
+                document.getElementById('test-result').style.display = 'block';
+                document.getElementById('result-data').textContent = JSON.stringify(result, null, 2);
+                
+                addLog('✓ Mutation successful!');
+            } catch (error) {
+                addLog(`ERROR: ${error.message}`, 'error');
+                document.getElementById('test-result').style.display = 'block';
+                document.getElementById('result-data').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Check SDK on load
+        window.addEventListener('lineraReady', () => {
+            checkSDK();
+        });
+
+        // Check immediately in case it's already loaded
+        setTimeout(checkSDK, 100);
+        
+        addLog('Test page loaded. Waiting for SDK...');
+    </script>
+</body>
+</html>

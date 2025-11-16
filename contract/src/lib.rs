@@ -1,5 +1,5 @@
-use async_graphql::{Request, Response, SimpleObject};
-use linera_sdk::base::{ChainId, Owner, Timestamp};
+use async_graphql::{Enum, Request, Response, SimpleObject};
+use linera_sdk::{ChainId, Owner, Timestamp};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -33,7 +33,8 @@ pub struct EventBadge {
 }
 
 /// Event categories
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, SimpleObject)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Enum)]
 pub enum EventCategory {
     Conference,
     Hackathon,
