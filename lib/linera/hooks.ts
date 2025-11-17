@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getLineraClient, LineraClient } from "./client";
+import { useWallet } from "../wallet-context";
 import type {
   BadgeInfo,
   CreateEventParams,
@@ -231,59 +232,77 @@ export function useAllEventBadges(applicationId?: string) {
  * Hook for event operations
  */
 export function useEventOperations(applicationId?: string) {
-  // Get the shared client instance from singleton
-  const [client] = useState<LineraClient>(() => getLineraClient());
+  // Get wallet context and shared client instance
+  const { isConnected, lineraClient } = useWallet();
+  
+  // CRITICAL: Use the client from wallet context, not a new instance
+  if (!lineraClient) {
+    throw new Error('Linera client not available from wallet context');
+  }
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAppIdSet, setIsAppIdSet] = useState(false);
   
-  // Check if wallet is connected by checking if client has a chain ID
-  const [isConnected, setIsConnected] = useState(false);
-  
-  useEffect(() => {
-    // Check connection status from the client and poll for changes
-    const checkConnection = () => {
-      const chainId = client.getChainId();
-      setIsConnected(!!chainId);
-    };
-    
-    checkConnection();
-    
-    // Poll every 1 second to detect wallet connection changes
-    const interval = setInterval(checkConnection, 1000);
-    
-    return () => clearInterval(interval);
-  }, [client]);
+  console.log('[useEventOperations] Using client from wallet context:', !!lineraClient);
 
   useEffect(() => {
-    if (applicationId && isConnected) {
-      client.setApplicationId(applicationId);
-    }
-  }, [client, applicationId, isConnected]);
+    const setupAppId = async () => {
+      if (applicationId && isConnected && lineraClient) {
+        console.log('[useEventOperations] Setting application ID:', applicationId);
+        try {
+          await lineraClient.setApplicationId(applicationId);
+          setIsAppIdSet(true);
+          console.log('[useEventOperations] ✅ Application ID set successfully');
+        } catch (err: any) {
+          console.error('[useEventOperations] Failed to set application ID:', err);
+          setError('Failed to initialize application');
+        }
+      }
+    };
+    setupAppId();
+  }, [lineraClient, applicationId, isConnected]);
 
   const createEvent = useCallback(
     async (params: CreateEventParams): Promise<TransactionResponse> => {
+      console.log('[useEventOperations] createEvent called');
+      console.log('[useEventOperations] isConnected:', isConnected);
+      console.log('[useEventOperations] isAppIdSet:', isAppIdSet);
+      
       if (!isConnected) {
         throw new Error("Wallet not connected");
+      }
+      
+      if (!isAppIdSet) {
+        console.warn('[useEventOperations] Application ID not set yet, waiting...');
+        // Give it a moment for the app ID to be set
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (!isAppIdSet) {
+          throw new Error("Application not ready. Please try again.");
+        }
       }
 
       setLoading(true);
       setError(null);
 
       try {
-        const result = await client.createEvent(params);
+        console.log('[useEventOperations] Creating event with params:', params);
+        const result = await lineraClient.createEvent(params);
+        console.log('[useEventOperations] Event creation result:', result);
         if (!result.success) {
           throw new Error(result.error || "Failed to create event");
         }
         return result;
       } catch (err: any) {
         const errorMessage = err.message || "Failed to create event";
+        console.error('[useEventOperations] Error:', errorMessage);
         setError(errorMessage);
         throw err;
       } finally {
         setLoading(false);
       }
     },
-    [client, isConnected]
+    [lineraClient, isConnected, isAppIdSet]
   );
 
   const claimBadge = useCallback(
@@ -296,7 +315,7 @@ export function useEventOperations(applicationId?: string) {
       setError(null);
 
       try {
-        const result = await client.claimBadge(claimCode);
+        const result = await lineraClient.claimBadge(claimCode);
         if (!result.success) {
           throw new Error(result.error || "Failed to claim badge");
         }
@@ -309,7 +328,7 @@ export function useEventOperations(applicationId?: string) {
         setLoading(false);
       }
     },
-    [client, isConnected]
+    [lineraClient, isConnected]
   );
 
   const addClaimCodes = useCallback(
@@ -322,7 +341,7 @@ export function useEventOperations(applicationId?: string) {
       setError(null);
 
       try {
-        const result = await client.addClaimCodes(codes);
+        const result = await lineraClient.addClaimCodes(codes);
         if (!result.success) {
           throw new Error(result.error || "Failed to add claim codes");
         }
@@ -335,7 +354,7 @@ export function useEventOperations(applicationId?: string) {
         setLoading(false);
       }
     },
-    [client, isConnected]
+    [lineraClient, isConnected]
   );
 
   const setEventActive = useCallback(
@@ -348,7 +367,7 @@ export function useEventOperations(applicationId?: string) {
       setError(null);
 
       try {
-        const result = await client.setEventActive(isActive);
+        const result = await lineraClient.setEventActive(isActive);
         if (!result.success) {
           throw new Error(result.error || "Failed to update event status");
         }
@@ -361,7 +380,7 @@ export function useEventOperations(applicationId?: string) {
         setLoading(false);
       }
     },
-    [client, isConnected]
+    [lineraClient, isConnected]
   );
 
   const validateClaimCode = useCallback(
@@ -371,13 +390,13 @@ export function useEventOperations(applicationId?: string) {
       }
 
       try {
-        return await client.isClaimCodeValid(claimCode);
+        return await lineraClient.isClaimCodeValid(claimCode);
       } catch (err: any) {
         console.error("Failed to validate claim code:", err);
         return false;
       }
     },
-    [client, isConnected]
+    [lineraClient, isConnected]
   );
 
   return {

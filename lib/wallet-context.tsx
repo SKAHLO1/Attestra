@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useCallback } from "react"
+import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { getLineraClient } from "./linera"
 import type { LineraWalletInfo } from "./linera/types"
 
@@ -30,12 +30,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<WalletAccount | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [lineraClient] = useState(() => getLineraClient())
+  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false)
 
-  const connect = useCallback(async (type: WalletType) => {
+  const connect = useCallback(async (type: WalletType, isAutoConnect = false) => {
     setIsConnecting(true)
     try {
       if (type === "linera") {
         // Use real Linera wallet integration
+        if (isAutoConnect) {
+          console.log('[WalletContext] Auto-connecting to testnet wallet...')
+        }
         const walletInfo: LineraWalletInfo = await lineraClient.connect()
         
         setAccount({
@@ -44,6 +48,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           balance: walletInfo.balance,
           chainId: walletInfo.chainId,
         })
+        
+        if (isAutoConnect) {
+          console.log('[WalletContext] ✅ Auto-connected to testnet wallet')
+          console.log('[WalletContext] Chain ID:', walletInfo.chainId)
+        }
       } else {
         // Fallback to mock for other wallet types (for demo purposes)
         await new Promise((resolve) => setTimeout(resolve, 1500))
@@ -86,6 +95,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     },
     [account],
   )
+
+  // Auto-connect in testnet development mode
+  useEffect(() => {
+    if (!autoConnectAttempted && !account && typeof window !== 'undefined') {
+      console.log('[WalletContext] Checking for auto-connect...')
+      // Always auto-connect to Linera in development (testnet or mock mode)
+      console.log('[WalletContext] Auto-connecting to Linera wallet...')
+      setAutoConnectAttempted(true)
+      connect('linera', true).catch(err => {
+        console.error('[WalletContext] Auto-connect failed:', err)
+      })
+    }
+  }, [autoConnectAttempted, account, connect])
 
   return (
     <WalletContext.Provider

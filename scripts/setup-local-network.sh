@@ -22,33 +22,36 @@ fi
 
 echo -e "${GREEN}✅ Linera CLI found${NC}"
 
-# Initialize local network
-echo -e "${BLUE}🌐 Initializing local Linera network...${NC}"
+# Initialize wallet
+echo -e "${BLUE}🔐 Checking Linera wallet...${NC}"
 
-# Stop any existing network
-linera net down 2>/dev/null || true
+# Check if wallet is already initialized
+linera wallet show >/dev/null 2>&1
 
-# Start fresh network with default configuration
-linera net up
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ Local network started successfully${NC}"
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}Initializing new wallet...${NC}"
+    linera wallet init --with-new-chain
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✅ Wallet initialized successfully${NC}"
+    else
+        echo "❌ Failed to initialize wallet"
+        exit 1
+    fi
 else
-    echo "❌ Failed to start local network"
-    exit 1
+    echo -e "${GREEN}✅ Wallet already initialized${NC}"
 fi
 
-# Get network info
-echo -e "${BLUE}📊 Network Information:${NC}"
-linera net status
+# Get wallet info
+echo -e "${BLUE}📊 Wallet Information:${NC}"
+linera wallet show
 
 echo ""
-echo -e "${GREEN}🎉 Local network is ready!${NC}"
-echo ""
-echo "Network endpoints:"
-echo "  - RPC: http://localhost:8080"
-echo "  - GraphQL: http://localhost:8080/graphql"
+echo -e "${GREEN}🎉 Wallet is ready!${NC}"
 echo ""
 echo "Next steps:"
 echo "1. Run './scripts/deploy-contract.sh' to deploy the contract"
 echo "2. Start the frontend with 'npm run dev'"
+echo ""
+echo "To check wallet status:"
+echo "  linera wallet show"
