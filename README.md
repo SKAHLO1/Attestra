@@ -41,44 +41,42 @@
 - **Theme**: [next-themes](https://github.com/pacocoursey/next-themes)
 - **Analytics**: [Vercel Analytics](https://vercel.com/analytics)
 
-## 📦 Installation
+## Quick Start - Local Development
 
-### Prerequisites
+→ See [`START_HERE.md`](./START_HERE.md) for the fastest setup!
 
-- Node.js 18.x or higher
-- npm, pnpm, or yarn
-- Linera wallet (for blockchain interactions)
+### Windows (PowerShell):
+```powershell
+# 1. Install Linera CLI
+cargo install linera --locked
 
-### Setup
+# 2. Run setup script
+.\start-local-dev.ps1
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/Trooper4L/linera-proof.git
-cd linera-proof
-```
-
-2. **Install dependencies**
-```bash
-npm install
-# or
-pnpm install
-# or
-yarn install
-```
-
-3. **Run the development server**
-```bash
+# 3. Start frontend
 npm run dev
-# or
-pnpm dev
-# or
-yarn dev
 ```
 
-4. **Open your browser**
-Navigate to [http://localhost:3000](http://localhost:3000)
+### Mac/Linux:
+```bash
+# 1. Install Linera CLI
+cargo install linera --locked
 
-## 🏗️ Project Structure
+# 2. Initialize wallet and deploy
+linera wallet init --with-new-chain
+bash scripts/deploy-contract.sh
+
+# 3. Add Application ID to .env.local
+
+# 4. Start frontend
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+**Full Guide:** See [`LOCAL_DEVELOPMENT.md`](./LOCAL_DEVELOPMENT.md) for detailed instructions
+
+## Project Structure
 
 ```
 linera-proof/
