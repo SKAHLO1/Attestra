@@ -1,35 +1,18 @@
 use async_graphql::{Enum, Request, Response, SimpleObject};
-use linera_sdk::{ChainId, Owner, Timestamp};
+use linera_sdk::abi::{ContractAbi, ServiceAbi};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
 
-/// Application state for the Event Badge microchain
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct EventBadge {
-    /// The name of the event
-    pub event_name: String,
-    /// The organizer of the event
-    pub organizer: Owner,
-    /// Description of the event
-    pub description: String,
-    /// Event date/time
-    pub event_date: Timestamp,
-    /// Location of the event
-    pub location: String,
-    /// Category of the event
-    pub category: EventCategory,
-    /// Metadata URI (IPFS CID or URL) for badge image
-    pub badge_metadata_uri: String,
-    /// Maximum number of badges that can be minted
-    pub max_supply: u64,
-    /// Current supply of minted badges
-    pub minted_count: u64,
-    /// Set of attendees who have claimed badges (Owner -> TokenId)
-    pub claimed_badges: HashMap<Owner, u64>,
-    /// Claim codes for badge claiming (code hash -> is_used)
-    pub claim_codes: HashMap<String, bool>,
-    /// Whether the event is active for claiming
-    pub is_active: bool,
+/// Application Binary Interface
+pub struct EventBadgeAbi;
+
+impl ContractAbi for EventBadgeAbi {
+    type Operation = Operation;
+    type Response = OperationResponse;
+}
+
+impl ServiceAbi for EventBadgeAbi {
+    type Query = Request;
+    type QueryResponse = Response;
 }
 
 /// Event categories
@@ -53,10 +36,18 @@ impl Default for EventCategory {
 pub struct BadgeMetadata {
     pub token_id: u64,
     pub event_name: String,
-    pub owner: Owner,
-    pub claimed_at: Timestamp,
+    pub owner: String,
+    pub claimed_at: u64,
     pub image_uri: String,
     pub category: EventCategory,
+}
+
+/// Response from operations
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum OperationResponse {
+    Ok,
+    BadgeClaimed { token_id: u64 },
+    Error(String),
 }
 
 /// Operations that can be performed on the Event Badge application
@@ -66,7 +57,7 @@ pub enum Operation {
     CreateEvent {
         event_name: String,
         description: String,
-        event_date: Timestamp,
+        event_date: u64,
         location: String,
         category: EventCategory,
         badge_metadata_uri: String,
@@ -87,33 +78,10 @@ pub enum Operation {
     /// Transfer badge to another owner
     TransferBadge {
         token_id: u64,
-        new_owner: Owner,
+        new_owner: String,
     },
 }
 
-/// Messages that can be sent across microchains
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum Message {
-    /// Notify that a badge was minted
-    BadgeMinted {
-        token_id: u64,
-        owner: Owner,
-        event_name: String,
-    },
-    /// Cross-chain badge verification request
-    VerifyBadge {
-        token_id: u64,
-        owner: Owner,
-    },
-}
-
-/// GraphQL query interface
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct EventBadgeQuery;
-
-/// GraphQL mutation interface
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct EventBadgeMutation;
 
 /// Response types for queries
 #[derive(Clone, Debug, Deserialize, Serialize, SimpleObject)]
@@ -173,6 +141,17 @@ pub enum EventBadgeError {
     
     #[error("Event not initialized")]
     EventNotInitialized,
+}
+
+/// Message type for cross-chain communication
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum Message {
+    /// Notify that a badge was minted
+    BadgeMinted {
+        token_id: u64,
+        owner: String,
+        event_name: String,
+    },
 }
 
 /// Helper function to hash claim codes
