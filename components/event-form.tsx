@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,24 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
   const applicationId = getApplicationId()
   const { createEvent, loading: creating, error: createError } = useEventOperations(applicationId)
   const { account, isConnected } = useWallet()
+  
+  // Debug: Log connection status
+  useEffect(() => {
+    console.log('[EventForm] Component mounted')
+    console.log('[EventForm] Application ID:', applicationId)
+    console.log('[EventForm] Is Connected:', isConnected)
+    console.log('[EventForm] Account:', account)
+  }, [])
+  
+  // Debug: Log when connection state changes
+  useEffect(() => {
+    console.log('[EventForm] Connection state changed - isConnected:', isConnected)
+    if (isConnected && account) {
+      console.log('[EventForm] ✅ Wallet connected:', account.address)
+    } else {
+      console.log('[EventForm] ⚠️ Wallet not connected')
+    }
+  }, [isConnected, account])
   
   const [formData, setFormData] = useState({
     eventName: "",
