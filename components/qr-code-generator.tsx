@@ -13,6 +13,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { generateClaimCode, generateQRCodeURL, encodeQRData, type QRCodeData } from "@/lib/qr-utils"
+import { useEventOperations } from "@/lib/linera"
+import { getApplicationId } from "@/lib/config"
 
 interface QRCodeGeneratorProps {
   eventId: string
@@ -21,35 +23,55 @@ interface QRCodeGeneratorProps {
 }
 
 export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGeneratorProps) {
+  const applicationId = getApplicationId()
+  const { addClaimCodes, loading: operationLoading } = useEventOperations(applicationId)
   const [generatedCodes, setGeneratedCodes] = useState<Array<{ code: string; qrUrl: string }>>([])
   const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const handleGenerateQRCodes = async (count = 10) => {
     setIsGenerating(true)
+    setError(null)
+    setSuccessMessage(null)
 
-    // Simulate generation delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    try {
+      // Generate claim codes and QR codes
+      const newCodes = Array.from({ length: count }, (_, i) => {
+        const claimCode = generateClaimCode(eventId, i + generatedCodes.length)
+        const qrData: QRCodeData = {
+          claimCode,
+          eventId,
+          eventName,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          issuer,
+        }
+        const encoded = encodeQRData(qrData)
+        const qrUrl = generateQRCodeURL(encoded)
 
-    const newCodes = Array.from({ length: count }, (_, i) => {
-      const claimCode = generateClaimCode(eventId, i)
-      const qrData: QRCodeData = {
-        claimCode,
-        eventId,
-        eventName,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        issuer,
+        return {
+          code: claimCode,
+          qrUrl,
+        }
+      })
+
+      // Register claim codes on blockchain
+      console.log('[QRCodeGenerator] Registering claim codes on blockchain...')
+      const claimCodesOnly = newCodes.map(c => c.code)
+      const result = await addClaimCodes(claimCodesOnly)
+      
+      if (result.success) {
+        setGeneratedCodes([...generatedCodes, ...newCodes])
+        setSuccessMessage(`Successfully generated and registered ${count} claim codes on blockchain!`)
+      } else {
+        throw new Error(result.error || 'Failed to register claim codes')
       }
-      const encoded = encodeQRData(qrData)
-      const qrUrl = generateQRCodeURL(encoded)
-
-      return {
-        code: claimCode,
-        qrUrl,
-      }
-    })
-
-    setGeneratedCodes([...generatedCodes, ...newCodes])
-    setIsGenerating(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate and register claim codes')
+      console.error('[QRCodeGenerator] Error:', err)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const handleDownloadQRCode = (qrUrl: string, claimCode: string) => {
@@ -75,19 +97,35 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
         <div className="flex gap-2">
           <Button
             onClick={() => handleGenerateQRCodes(10)}
-            disabled={isGenerating}
+            disabled={isGenerating || operationLoading}
             className="bg-primary hover:bg-primary/90"
           >
-            {isGenerating ? "Generating..." : "Generate 10 QR Codes"}
+            {isGenerating || operationLoading ? "Generating & Registering..." : "Generate 10 QR Codes"}
           </Button>
           <Button
             onClick={() => handleGenerateQRCodes(50)}
-            disabled={isGenerating}
+            disabled={isGenerating || operationLoading}
             variant="outline"
             className="bg-transparent"
           >
             Generate 50
           </Button>
+        </div>
+
+        {successMessage && (
+          <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+            <p className="text-sm text-green-700">{successMessage}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        <div className="text-xs text-muted-foreground">
+          💡 Generated codes are automatically registered on the blockchain for attendees to claim
         </div>
 
         {generatedCodes.length > 0 && (
