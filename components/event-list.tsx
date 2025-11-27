@@ -11,7 +11,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import QRCodeGenerator from "./qr-code-generator"
+import { useEventOperations } from "@/lib/linera"
+import { getApplicationId } from "@/lib/config"
 
 interface Event {
   id: string
@@ -25,21 +38,69 @@ interface Event {
 
 interface EventListProps {
   events: Event[]
+  onEventUpdated?: () => void
 }
 
-export default function EventList({ events }: EventListProps) {
+export default function EventList({ events, onEventUpdated }: EventListProps) {
+  const applicationId = getApplicationId()
+  const { setEventActive, loading: operationLoading } = useEventOperations(applicationId)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [showAttendees, setShowAttendees] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const handleDeactivateEvent = async (event: Event) => {
+    setActionLoading(true)
+    try {
+      console.log('[EventList] Deactivating event...')
+      const result = await setEventActive(false)
+      
+      if (result.success) {
+        console.log('[EventList] Event deactivated successfully')
+        // Refresh the event data
+        onEventUpdated?.()
+      } else {
+        console.error('[EventList] Failed to deactivate event:', result.error)
+        alert('Failed to deactivate event: ' + result.error)
+      }
+    } catch (error: any) {
+      console.error('[EventList] Error deactivating event:', error)
+      alert('Error deactivating event: ' + error.message)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleActivateEvent = async (event: Event) => {
+    setActionLoading(true)
+    try {
+      console.log('[EventList] Activating event...')
+      const result = await setEventActive(true)
+      
+      if (result.success) {
+        console.log('[EventList] Event activated successfully')
+        // Refresh the event data
+        onEventUpdated?.()
+      } else {
+        console.error('[EventList] Failed to activate event:', result.error)
+        alert('Failed to activate event: ' + result.error)
+      }
+    } catch (error: any) {
+      console.error('[EventList] Error activating event:', error)
+      alert('Error activating event: ' + error.message)
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Your Events</h3>
+      <h3 className="text-lg font-semibold text-foreground">Current Event</h3>
 
       {events.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-8 text-center text-muted-foreground">
-            No events created yet. Create your first event to get started.
+            No event configured yet. Click "Create Event" above to set up your event.
           </CardContent>
         </Card>
       ) : (
@@ -204,6 +265,51 @@ export default function EventList({ events }: EventListProps) {
                       <QRCodeGenerator eventId={event.id} eventName={event.name} issuer="Event Organizer" />
                     </DialogContent>
                   </Dialog>
+                </div>
+                
+                <div className="mt-3 pt-3 border-t flex gap-2">
+                  {event.status === 'active' ? (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          className="flex-1"
+                          disabled={actionLoading || operationLoading}
+                        >
+                          {actionLoading ? 'Processing...' : 'Deactivate Event'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Deactivate Event?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will prevent new attendees from claiming badges for this event.
+                            You can reactivate it later. No data will be lost.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeactivateEvent(event)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Deactivate
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  ) : (
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={() => handleActivateEvent(event)}
+                      disabled={actionLoading || operationLoading}
+                    >
+                      {actionLoading ? 'Processing...' : 'Activate Event'}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
