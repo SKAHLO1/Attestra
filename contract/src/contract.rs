@@ -179,7 +179,7 @@ impl Contract for EventBadgeContract {
     }
 
     async fn store(mut self) {
-
+        self.state.save().await.expect("Failed to save state");
     }
 }
 
