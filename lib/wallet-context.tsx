@@ -54,18 +54,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           console.log('[WalletContext] Chain ID:', walletInfo.chainId)
         }
       } else {
-        // Fallback to mock for other wallet types (for demo purposes)
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-
-        const mockAddress = "0x" + Math.random().toString(16).slice(2, 10).toUpperCase()
-        const mockBalance = (Math.random() * 10).toFixed(2)
-
-        setAccount({
-          address: mockAddress,
-          type,
-          balance: mockBalance,
-          chainId: 1,
-        })
+        // Only Linera wallet is supported
+        throw new Error(`Wallet type "${type}" is not supported. Please use Linera wallet.`)
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error)

@@ -399,11 +399,38 @@ export function useEventOperations(applicationId?: string) {
     [lineraClient, isConnected]
   );
 
+  const transferBadge = useCallback(
+    async (tokenId: number, newOwner: string): Promise<TransactionResponse> => {
+      if (!isConnected) {
+        throw new Error("Wallet not connected");
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const result = await lineraClient.transferBadge(tokenId, newOwner);
+        if (!result.success) {
+          throw new Error(result.error || "Failed to transfer badge");
+        }
+        return result;
+      } catch (err: any) {
+        const errorMessage = err.message || "Failed to transfer badge";
+        setError(errorMessage);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [lineraClient, isConnected]
+  );
+
   return {
     createEvent,
     claimBadge,
     addClaimCodes,
     setEventActive,
+    transferBadge,
     validateClaimCode,
     loading,
     error,
