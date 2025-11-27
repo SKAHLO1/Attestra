@@ -4,8 +4,12 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16.0-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.1-06B6D4?style=for-the-badge&logo=tailwindcss)
+![Linera](https://img.shields.io/badge/Linera-Official_Template-red?style=for-the-badge)
 
 **Provera** is a decentralized application (dApp) for issuing and claiming verifiable on-chain attendance badges, built on the [Linera](https://linera.io) blockchain network. Event organizers can create events and distribute proof-of-attendance badges, while attendees can claim and showcase their badges in a beautiful portfolio.
+
+> **📦 Official Linera Template Integration**  
+> This project follows the [official Linera protocol template](https://github.com/linera-io/linera-protocol/tree/main/examples) structure and best practices. The frontend implementation is based on the non-fungible token example with modern Next.js architecture.
 
 ## ✨ Features
 
