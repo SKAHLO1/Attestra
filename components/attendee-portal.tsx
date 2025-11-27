@@ -62,12 +62,19 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   }, [userBadges])
 
   const handleQRScan = () => {
-    // TODO: Implement QR scanner library (e.g., react-qr-reader)
-    // For now, simulate a scan
-    const simulatedCode = "LINERA-2025-" + Math.random().toString(36).substring(2, 8).toUpperCase()
-    setClaimCode(simulatedCode)
-    setShowQRScanner(false)
-    // In production, this would open camera and scan QR code
+    // Open QR scanner modal
+    // Recommend using @zxing/browser or react-qr-scanner for production
+    // Example implementation:
+    // import { BrowserQRCodeReader } from '@zxing/browser'
+    // const codeReader = new BrowserQRCodeReader()
+    // codeReader.decodeFromVideoDevice(undefined, 'video', (result, error) => {
+    //   if (result) {
+    //     const scannedData = result.getText()
+    //     const decoded = decodeQRData(scannedData)
+    //     if (decoded) setClaimCode(decoded.claimCode)
+    //   }
+    // })
+    setShowQRScanner(true)
   }
 
   const handleClaimBadge = async (e: React.FormEvent) => {
@@ -226,8 +233,11 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                     Click the button below to scan a QR code
                   </p>
                   <Button onClick={handleQRScan} disabled={loading} className="bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity shadow-lg shadow-accent/20">
-                    {loading ? "Processing..." : "Scan QR Code (Demo)"}
+                    {loading ? "Processing..." : "Scan QR Code"}
                   </Button>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    💡 To enable camera scanning, install @zxing/browser package
+                  </p>
                 </div>
 
                 {claimCode && (
