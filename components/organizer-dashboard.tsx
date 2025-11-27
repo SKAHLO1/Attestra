@@ -36,9 +36,14 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
 
   const handleCreateEvent = (eventData: any) => {
     // Event creation is handled by the EventForm component
-    // Just close the form and refetch
+    // In Linera architecture: one application = one event
+    // This updates the existing event on this microchain
     setShowForm(false)
-    setTimeout(() => refetch(), 2000)
+    // Refetch to get updated event data
+    setTimeout(() => {
+      console.log('[Dashboard] Refetching event info after creation...')
+      refetch()
+    }, 1500)
   }
 
   if (!wallet) {
@@ -58,13 +63,18 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
           <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Event Dashboard
           </h2>
-          <p className="text-muted-foreground mt-1">Manage your events and issue attendance badges</p>
+          <p className="text-muted-foreground mt-1">Manage your event and issue attendance badges</p>
+          {eventInfo && (
+            <p className="text-xs text-muted-foreground mt-1">
+              📍 Managing: <span className="font-mono font-semibold">{eventInfo.eventName}</span>
+            </p>
+          )}
         </div>
         <Button 
           onClick={() => setShowForm(!showForm)} 
           className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
         >
-          {showForm ? "Cancel" : "+ Create Event"}
+          {showForm ? "Cancel" : (eventInfo ? "Update Event" : "+ Create Event")}
         </Button>
       </div>
 
@@ -94,11 +104,12 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
         </Card>
       )}
 
-      {error && (
+      {error && !loading && (
         <Card className="border-yellow-500/50">
           <CardContent className="pt-6">
-            <p className="text-yellow-700 mb-2 font-medium">⚠️ No event found</p>
-            <p className="text-sm text-muted-foreground">Create your first event to get started, or ensure your Application ID is correctly configured.</p>
+            <p className="text-yellow-700 mb-2 font-medium">⚠️ No event configured yet</p>
+            <p className="text-sm text-muted-foreground">Click "Create Event" above to set up your event on this microchain.</p>
+            <p className="text-xs text-muted-foreground mt-2">💡 Note: Each Linera application manages one event. To create multiple events, deploy additional applications.</p>
           </CardContent>
         </Card>
       )}
@@ -153,7 +164,7 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
         </Card>
       </div>
 
-      <EventList events={events} />
+      <EventList events={events} onEventUpdated={refetch} />
     </div>
   )
 }
