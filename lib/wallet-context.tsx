@@ -3,9 +3,10 @@
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { getLineraClient } from "./linera"
+import { CheckoWalletAdapter } from "./linera/checko-adapter"
 import type { LineraWalletInfo } from "./linera/types"
 
-export type WalletType = "metamask" | "walletconnect" | "coinbase" | "linera"
+export type WalletType = "linera-extension" | "linera-faucet"
 
 export interface WalletAccount {
   address: string
@@ -22,6 +23,7 @@ interface WalletContextType {
   disconnect: () => void
   switchChain: (chainId: number) => Promise<void>
   lineraClient?: ReturnType<typeof getLineraClient>
+  hasExtension: boolean // Whether CheCko extension is detected
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined)
@@ -30,32 +32,56 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<WalletAccount | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [lineraClient] = useState(() => getLineraClient())
+  const [checkoAdapter] = useState(() => new CheckoWalletAdapter())
+  const [hasExtension, setHasExtension] = useState(false)
   const [autoConnectAttempted, setAutoConnectAttempted] = useState(false)
 
   const connect = useCallback(async (type: WalletType, isAutoConnect = false) => {
     setIsConnecting(true)
     try {
-      if (type === "linera") {
-        // Use real Linera wallet integration
+      if (type === "linera-extension") {
+        // Use CheCko browser extension
         if (isAutoConnect) {
-          console.log('[WalletContext] Auto-connecting to testnet wallet...')
+          console.log('[WalletContext] Auto-connecting to CheCko extension...')
         }
-        const walletInfo: LineraWalletInfo = await lineraClient.connect()
+        
+        if (!CheckoWalletAdapter.isInstalled()) {
+          throw new Error('CheCko wallet extension is not installed. Please install it from https://github.com/respeer-ai/linera-wallet')
+        }
+        
+        const walletInfo: LineraWalletInfo = await checkoAdapter.connect()
         
         setAccount({
           address: walletInfo.address,
-          type: "linera",
+          type: "linera-extension",
           balance: walletInfo.balance,
           chainId: walletInfo.chainId,
         })
         
         if (isAutoConnect) {
-          console.log('[WalletContext] ✅ Auto-connected to testnet wallet')
+          console.log('[WalletContext] ✅ Connected to CheCko extension')
+          console.log('[WalletContext] Chain ID:', walletInfo.chainId)
+        }
+      } else if (type === "linera-faucet") {
+        // Use faucet-based wallet (original method)
+        if (isAutoConnect) {
+          console.log('[WalletContext] Auto-connecting to testnet faucet...')
+        }
+        const walletInfo: LineraWalletInfo = await lineraClient.connect()
+        
+        setAccount({
+          address: walletInfo.address,
+          type: "linera-faucet",
+          balance: walletInfo.balance,
+          chainId: walletInfo.chainId,
+        })
+        
+        if (isAutoConnect) {
+          console.log('[WalletContext] ✅ Auto-connected to testnet faucet')
           console.log('[WalletContext] Chain ID:', walletInfo.chainId)
         }
       } else {
-        // Only Linera wallet is supported
-        throw new Error(`Wallet type "${type}" is not supported. Please use Linera wallet.`)
+        throw new Error(`Wallet type "${type}" is not supported. Please use linera-extension or linera-faucet.`)
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error)
@@ -63,14 +89,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsConnecting(false)
     }
-  }, [lineraClient])
+  }, [lineraClient, checkoAdapter])
 
   const disconnect = useCallback(() => {
-    if (account?.type === "linera") {
+    if (account?.type === "linera-extension") {
+      checkoAdapter.disconnect()
+    } else if (account?.type === "linera-faucet") {
       lineraClient.disconnect()
     }
     setAccount(null)
-  }, [lineraClient, account])
+  }, [lineraClient, checkoAdapter, account])
 
   const switchChain = useCallback(
     async (chainId: number) => {
@@ -86,18 +114,38 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [account],
   )
 
+  // Detect CheCko extension on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const extensionInstalled = CheckoWalletAdapter.isInstalled()
+      setHasExtension(extensionInstalled)
+      console.log('[WalletContext] CheCko extension detected:', extensionInstalled)
+    }
+  }, [])
+
   // Auto-connect in testnet development mode
   useEffect(() => {
     if (!autoConnectAttempted && !account && typeof window !== 'undefined') {
       console.log('[WalletContext] Checking for auto-connect...')
-      // Always auto-connect to Linera in development (testnet or mock mode)
-      console.log('[WalletContext] Auto-connecting to Linera wallet...')
       setAutoConnectAttempted(true)
-      connect('linera', true).catch(err => {
+      
+      // Prefer extension if available, otherwise use faucet
+      const walletType: WalletType = hasExtension ? 'linera-extension' : 'linera-faucet'
+      console.log(`[WalletContext] Auto-connecting to ${walletType}...`)
+      
+      connect(walletType, true).catch(err => {
         console.error('[WalletContext] Auto-connect failed:', err)
+        
+        // If extension fails and it was our first choice, fallback to faucet
+        if (walletType === 'linera-extension') {
+          console.log('[WalletContext] Falling back to faucet method...')
+          connect('linera-faucet', true).catch(fallbackErr => {
+            console.error('[WalletContext] Fallback connect failed:', fallbackErr)
+          })
+        }
       })
     }
-  }, [autoConnectAttempted, account, connect])
+  }, [autoConnectAttempted, account, hasExtension, connect])
 
   return (
     <WalletContext.Provider
@@ -109,6 +157,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         disconnect,
         switchChain,
         lineraClient,
+        hasExtension,
       }}
     >
       {children}
