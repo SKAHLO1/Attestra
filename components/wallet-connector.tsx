@@ -13,35 +13,33 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWallet, type WalletType } from "@/lib/wallet-context"
 
-const WALLET_OPTIONS: Array<{ type: WalletType; name: string; icon: string; description: string }> = [
+const WALLET_OPTIONS: Array<{ 
+  type: WalletType; 
+  name: string; 
+  icon: string; 
+  description: string;
+  badge?: string;
+  requiresExtension?: boolean;
+}> = [
   {
-    type: "metamask",
-    name: "MetaMask",
-    icon: "🦊",
-    description: "Connect using MetaMask browser extension",
-  },
-  {
-    type: "walletconnect",
-    name: "WalletConnect",
+    type: "linera-extension",
+    name: "CheCko Wallet",
     icon: "🔗",
-    description: "Scan QR code with your mobile wallet",
+    description: "Connect using CheCko browser extension (recommended)",
+    badge: "Recommended",
+    requiresExtension: true,
   },
   {
-    type: "coinbase",
-    name: "Coinbase Wallet",
-    icon: "💙",
-    description: "Connect using Coinbase Wallet",
-  },
-  {
-    type: "linera",
-    name: "Linera Wallet",
-    icon: "⛓️",
-    description: "Connect using Linera native wallet",
+    type: "linera-faucet",
+    name: "Testnet Faucet",
+    icon: "🚰",
+    description: "Auto-connect with testnet wallet (demo mode)",
+    badge: "Demo",
   },
 ]
 
 export default function WalletConnector() {
-  const { account, isConnecting, isConnected, connect, disconnect } = useWallet()
+  const { account, isConnecting, isConnected, connect, disconnect, hasExtension } = useWallet()
   const [showDialog, setShowDialog] = useState(false)
 
   const handleWalletSelect = async (type: WalletType) => {
@@ -96,22 +94,53 @@ export default function WalletConnector() {
           </DialogHeader>
 
           <div className="grid gap-3">
-            {WALLET_OPTIONS.map((wallet) => (
-              <button
-                key={wallet.type}
-                onClick={() => handleWalletSelect(wallet.type)}
-                disabled={isConnecting}
-                className="p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">{wallet.icon}</span>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{wallet.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{wallet.description}</p>
+            {WALLET_OPTIONS.map((wallet) => {
+              const isDisabled = wallet.requiresExtension && !hasExtension;
+              
+              return (
+                <button
+                  key={wallet.type}
+                  onClick={() => handleWalletSelect(wallet.type)}
+                  disabled={isConnecting || isDisabled}
+                  className="p-4 rounded-lg border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed relative"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{wallet.icon}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground">{wallet.name}</h3>
+                        {wallet.badge && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+                            {wallet.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{wallet.description}</p>
+                      {isDisabled && (
+                        <p className="text-xs text-destructive mt-2 font-medium">
+                          ⚠️ Extension not installed. <a 
+                            href="https://github.com/respeer-ai/linera-wallet" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="underline hover:text-destructive/80"
+                          >
+                            Get CheCko
+                          </a>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
+          </div>
+          
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-xs text-muted-foreground">
+              💡 <strong>Tip:</strong> {hasExtension 
+                ? 'CheCko extension detected! Use it for persistent wallet across sessions.' 
+                : 'Install CheCko for a better experience, or use Demo mode for quick testing.'}
+            </p>
           </div>
         </DialogContent>
       </Dialog>
