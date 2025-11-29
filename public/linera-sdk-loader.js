@@ -9,13 +9,13 @@
  * This implements the official Linera template pattern for Conway Testnet integration.
  * 
  * Template Integration Checklist:
- * ✅ Import map configured in layout.tsx (matches counter example line 51-57)
+ * ✅ Import map configured dynamically (matches counter example line 51-57)
  * ✅ Environment variables follow NEXT_PUBLIC_ pattern
  * ✅ Faucet URL points to official Conway testnet
  * ✅ GraphQL client pattern (similar to non-fungible example)
  * 
  * Prerequisites:
- * 1. Import map in HTML <head> (✅ already added in layout.tsx)
+ * 1. Import map loaded dynamically to avoid hydration issues
  * 2. @linera/client package: npm install @linera/client (optional for production)
  * 
  * Official Repository: https://github.com/linera-io/linera-protocol
@@ -24,6 +24,19 @@
 (async function() {
   console.log('[Linera Template] Initializing Official SDK...');
   console.log('[Linera Template] Conway Testnet: https://faucet.testnet-conway.linera.net');
+  
+  // Setup import map dynamically (client-side only to avoid hydration issues)
+  if (!document.querySelector('script[type="importmap"]')) {
+    const importMap = document.createElement('script');
+    importMap.type = 'importmap';
+    importMap.textContent = JSON.stringify({
+      imports: {
+        "@linera/client": "./node_modules/@linera/client/dist/linera_web.js"
+      }
+    });
+    document.head.prepend(importMap);
+    console.log('[Linera Template] Import map configured');
+  }
   
   try {
     // Official Linera Template Configuration
