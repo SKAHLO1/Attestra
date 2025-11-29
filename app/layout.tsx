@@ -29,21 +29,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Linera Official Import Map Template */}
-        <script
-          type="importmap"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              imports: {
-                "@linera/client": "./node_modules/@linera/client/dist/linera_web.js"
-              }
-            })
-          }}
-        />
-      </head>
       <body className={`font-sans antialiased`}>
-        {/* Load Linera SDK */}
+        {/* Linera Import Map - Loaded via SDK loader */}
         <Script
           src="/linera-sdk-loader.js"
           strategy="beforeInteractive"
