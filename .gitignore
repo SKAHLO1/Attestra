@@ -2,10 +2,18 @@
 
 # dependencies
 /node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Keep local packages
+!packages/
+
+# testing
+/out/
 
 # next.js
 /.next/
-/out/
 
 # production
 /build
