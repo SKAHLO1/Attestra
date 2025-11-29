@@ -56,6 +56,7 @@ export interface LineraWalletInfo {
   address: Owner;
   chainId: ChainId;
   balance?: string;
+  walletType?: "extension" | "faucet"; // Track which connection method was used
 }
 
 export interface TransactionResponse {
