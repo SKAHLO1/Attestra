@@ -5,6 +5,16 @@
  */
 
 import {
+  initialize,
+  Client,
+  Wallet,
+  Faucet,
+  Application,
+  PrivateKeySigner,
+  type Signer,
+} from "@linera/client";
+
+import {
   ApplicationId,
   BadgeInfo,
   ChainId,
@@ -16,42 +26,29 @@ import {
   TransactionResponse,
 } from "./types";
 
-// Type declarations for @linera/client
-// This package should be installed via npm: npm install @linera/client
-declare global {
-  interface Window {
-    linera?: any;
-  }
-}
-
-// Import linera client (will be loaded via importmap in production)
-let lineraModule: any = null;
+// Track WASM initialization
+let wasmInitialized = false;
 
 export class LineraClient {
-  private wallet: any = null;
-  private client: any = null;
-  private backend: any = null;
+  private wallet: Wallet | null = null;
+  private client: Client | null = null;
+  private signer: Signer | null = null;
+  private application: Application | null = null;
   private chainId: ChainId | null = null;
   private applicationId: ApplicationId | null = null;
-  private faucetUrl: string = process.env.NEXT_PUBLIC_LINERA_FAUCET_URL || "http://localhost:8080";
-  private isTestnetMode: boolean = false;
-  private testnetChainId: ChainId = "620075dad301ed7d1a5fb12c34f39a731f4b7b6fcf5cf91c2de26df3840ad26a";
+  private faucetUrl: string = process.env.NEXT_PUBLIC_LINERA_FAUCET_URL || "https://faucet.conway.linera.io";
   private instanceId: string = Math.random().toString(36).slice(2, 9);
 
   constructor(faucetUrl?: string) {
     if (faucetUrl) {
       this.faucetUrl = faucetUrl;
     }
-    // Enable testnet mode if SDK is not available
-    this.isTestnetMode = typeof window !== 'undefined' && !(window as any).linera;
     console.log(`[LineraClient:${this.instanceId}] Created new instance`);
-    if (this.isTestnetMode) {
-      console.log(`[LineraClient:${this.instanceId}] Running in testnet development mode`);
-    }
+    console.log(`[LineraClient:${this.instanceId}] Faucet URL:`, this.faucetUrl);
   }
 
   /**
-   * Initialize Linera client library
+   * Initialize Linera WASM module
    * Must be called before using any other methods
    */
   async initialize(): Promise<void> {
@@ -59,45 +56,19 @@ export class LineraClient {
       throw new Error("Linera client can only be used in browser environment");
     }
 
-    // Wait for Linera SDK to load
-    if (!(window as any).linera) {
-      console.log("[LineraClient] Waiting for Linera SDK to load...");
-      
-      // Wait up to 10 seconds for SDK to load
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Linera SDK failed to load within 10 seconds"));
-        }, 10000);
-        
-        const checkReady = () => {
-          if ((window as any).lineraReady && (window as any).linera) {
-            clearTimeout(timeout);
-            resolve();
-          } else {
-            setTimeout(checkReady, 100);
-          }
-        };
-        
-        // Listen for lineraReady event
-        window.addEventListener('lineraReady', () => {
-          clearTimeout(timeout);
-          resolve();
-        }, { once: true });
-        
-        // Start checking immediately
-        checkReady();
-      });
+    if (wasmInitialized) {
+      console.log("[LineraClient] WASM already initialized");
+      return;
     }
 
-    lineraModule = (window as any).linera;
-    console.log("[LineraClient] Linera SDK loaded successfully");
-
-    // Initialize WASM
     try {
-      await lineraModule.default();
-      console.log("[LineraClient] WASM initialized");
+      console.log("[LineraClient] Initializing WASM module...");
+      await initialize();
+      wasmInitialized = true;
+      console.log("[LineraClient] ✅ WASM initialized successfully");
     } catch (error) {
-      console.warn("[LineraClient] WASM initialization skipped (may be in mock mode)");
+      console.error("[LineraClient] ❌ Failed to initialize WASM:", error);
+      throw new Error("Failed to initialize Linera WASM module");
     }
   }
 
@@ -106,65 +77,81 @@ export class LineraClient {
    */
   async connect(): Promise<LineraWalletInfo> {
     console.log(`[LineraClient:${this.instanceId}] connect() called`);
-    // Testnet mode: use existing wallet from environment
-    if (this.isTestnetMode) {
-      console.log(`[LineraClient:${this.instanceId}] Connecting in testnet mode...`);
-      this.chainId = this.testnetChainId;
-      this.wallet = { connected: true };
-      console.log(`[LineraClient:${this.instanceId}] ✅ Connected with chainId:`, this.chainId);
-      return {
-        address: this.chainId,
-        chainId: this.chainId,
-        balance: "1000", // Mock balance
-      };
-    }
 
     try {
-      if (!lineraModule) {
+      if (!wasmInitialized) {
         await this.initialize();
       }
 
-      // Create wallet via faucet
-      const faucet = new lineraModule.Faucet(this.faucetUrl);
+      console.log(`[LineraClient:${this.instanceId}] Creating wallet from faucet...`);
+      const faucet = new Faucet(this.faucetUrl);
       this.wallet = await faucet.createWallet();
-      this.client = new lineraModule.Client(this.wallet);
       
+      console.log(`[LineraClient:${this.instanceId}] Wallet created, creating signer...`);
+      // Create a random private key signer for development
+      this.signer = PrivateKeySigner.createRandom();
+      const owner = this.signer.address();
+      
+      console.log(`[LineraClient:${this.instanceId}] Claiming chain from faucet...`);
       // Claim a chain from the faucet
-      this.chainId = await faucet.claimChain(this.client);
+      this.chainId = await faucet.claimChain(this.wallet, owner);
+      
+      console.log(`[LineraClient:${this.instanceId}] Creating client...`);
+      // Create client (skip_process_inbox = false for normal operation)
+      this.client = new Client(this.wallet, this.signer, false);
+      
+      console.log(`[LineraClient:${this.instanceId}] ✅ Connected with chainId:`, this.chainId);
+      
+      // Get balance
+      const balance = await this.client.balance();
 
       return {
-        address: this.chainId || "",
+        address: owner,
         chainId: this.chainId || "",
-        balance: "0", // Faucet provides tokens
+        balance: balance || "0",
       };
     } catch (error: any) {
-      console.error("Failed to connect to Linera:", error);
-      throw new Error(error.message || "Failed to connect");
+      console.error("[LineraClient] Failed to connect:", error);
+      throw new Error(error.message || "Failed to connect to Linera");
     }
   }
 
   /**
-   * Connect with existing wallet JSON
+   * Connect with existing private key
    */
-  async connectWithWallet(walletJson: string): Promise<LineraWalletInfo> {
+  async connectWithPrivateKey(privateKey: string): Promise<LineraWalletInfo> {
     try {
-      if (!lineraModule) {
+      if (!wasmInitialized) {
         await this.initialize();
       }
 
-      this.wallet = await lineraModule.Wallet.fromJson(walletJson);
-      this.client = new lineraModule.Client(this.wallet);
+      console.log(`[LineraClient:${this.instanceId}] Connecting with private key...`);
       
-      // Get default chain
-      this.chainId = this.wallet.defaultChain() || "";
+      // Create signer from private key
+      this.signer = new PrivateKeySigner(privateKey);
+      const owner = this.signer.address();
+      
+      // Create wallet from faucet
+      const faucet = new Faucet(this.faucetUrl);
+      this.wallet = await faucet.createWallet();
+      
+      // Create client
+      this.client = new Client(this.wallet, this.signer, false);
+      
+      // Get identity to determine chain ID
+      const identity = await this.client.identity();
+      this.chainId = identity.chainId || null;
+      
+      const balance = await this.client.balance();
 
       return {
-        address: this.chainId || "",
+        address: owner,
         chainId: this.chainId || "",
+        balance: balance || "0",
       };
     } catch (error: any) {
-      console.error("Failed to connect with wallet:", error);
-      throw new Error(error.message || "Failed to connect with wallet");
+      console.error("[LineraClient] Failed to connect with private key:", error);
+      throw new Error(error.message || "Failed to connect with private key");
     }
   }
 
@@ -174,33 +161,33 @@ export class LineraClient {
   disconnect(): void {
     this.wallet = null;
     this.client = null;
-    this.backend = null;
+    this.signer = null;
+    this.application = null;
     this.chainId = null;
     this.applicationId = null;
+    console.log(`[LineraClient:${this.instanceId}] Disconnected`);
   }
 
   /**
-   * Set the application ID and initialize backend connection
+   * Set the application ID and initialize application connection
    */
   async setApplicationId(applicationId: ApplicationId): Promise<void> {
     console.log(`[LineraClient:${this.instanceId}] setApplicationId called`);
     console.log(`[LineraClient:${this.instanceId}] - applicationId:`, applicationId);
-    console.log(`[LineraClient:${this.instanceId}] - isTestnetMode:`, this.isTestnetMode);
-    console.log(`[LineraClient:${this.instanceId}] - chainId:`, this.chainId);
-    console.log(`[LineraClient:${this.instanceId}] - wallet:`, !!this.wallet);
+    
+    if (!this.client) {
+      throw new Error("Client not connected. Call connect() first.");
+    }
     
     this.applicationId = applicationId;
     
-    if (this.isTestnetMode) {
-      // In testnet mode, we'll make direct GraphQL requests
-      console.log(`[LineraClient:${this.instanceId}] Setting backend for testnet mode`);
-      this.backend = { testnetMode: true };
-      console.log(`[LineraClient:${this.instanceId}] ✅ Backend set:`, this.backend);
-      return;
-    }
-    
-    if (this.client) {
-      this.backend = await this.client.frontend().application(applicationId);
+    try {
+      console.log(`[LineraClient:${this.instanceId}] Getting application...`);
+      this.application = await this.client.application(applicationId);
+      console.log(`[LineraClient:${this.instanceId}] ✅ Application connected`);
+    } catch (error: any) {
+      console.error(`[LineraClient:${this.instanceId}] Failed to connect to application:`, error);
+      throw new Error(`Failed to connect to application: ${error.message}`);
     }
   }
 
@@ -219,30 +206,19 @@ export class LineraClient {
   }
 
   /**
-   * Execute a GraphQL query using the Linera client
+   * Execute a GraphQL query using the Linera Application API
    */
   private async executeQuery<T>(graphqlQuery: string): Promise<T> {
     console.log(`[LineraClient:${this.instanceId}] executeQuery called`);
-    console.log(`[LineraClient:${this.instanceId}] - backend:`, this.backend);
-    console.log(`[LineraClient:${this.instanceId}] - isTestnetMode:`, this.isTestnetMode);
     
-    if (!this.backend) {
-      console.error(`[LineraClient:${this.instanceId}] ❌ Backend is null!`);
-      console.error(`[LineraClient:${this.instanceId}] - applicationId:`, this.applicationId);
-      console.error(`[LineraClient:${this.instanceId}] - chainId:`, this.chainId);
+    if (!this.application) {
+      console.error(`[LineraClient:${this.instanceId}] ❌ Application is null!`);
       throw new Error("Application not connected. Call setApplicationId first.");
     }
 
-    // Testnet mode: make direct GraphQL request
-    if (this.isTestnetMode) {
-      return this.executeTestnetQuery<T>(graphqlQuery);
-    }
-
     try {
-      const response = await this.backend.query(
-        JSON.stringify({ query: graphqlQuery })
-      );
-
+      // Application.query() expects a GraphQL query string
+      const response = await this.application.query(graphqlQuery);
       const result = JSON.parse(response);
       
       if (result.errors) {
@@ -251,7 +227,7 @@ export class LineraClient {
 
       return result.data;
     } catch (error: any) {
-      console.warn("[LineraClient] Query error, may be in mock mode:", error.message);
+      console.error("[LineraClient] Query error:", error);
       throw error;
     }
   }
@@ -262,26 +238,15 @@ export class LineraClient {
    */
   private async executeMutation<T>(mutation: string): Promise<T> {
     console.log(`[LineraClient:${this.instanceId}] executeMutation called`);
-    console.log(`[LineraClient:${this.instanceId}] - backend:`, this.backend);
-    console.log(`[LineraClient:${this.instanceId}] - isTestnetMode:`, this.isTestnetMode);
     
-    if (!this.backend) {
-      console.error(`[LineraClient:${this.instanceId}] ❌ Backend is null!`);
-      console.error(`[LineraClient:${this.instanceId}] - applicationId:`, this.applicationId);
-      console.error(`[LineraClient:${this.instanceId}] - chainId:`, this.chainId);
+    if (!this.application) {
+      console.error(`[LineraClient:${this.instanceId}] ❌ Application is null!`);
       throw new Error("Application not connected. Call setApplicationId first.");
     }
 
-    // Testnet mode: make direct GraphQL request
-    if (this.isTestnetMode) {
-      return this.executeTestnetMutation<T>(mutation);
-    }
-
     try {
-      const response = await this.backend.query(
-        JSON.stringify({ query: mutation })
-      );
-
+      // Application.query() handles both queries and mutations
+      const response = await this.application.query(mutation);
       const result = JSON.parse(response);
       
       if (result.errors) {
@@ -290,53 +255,9 @@ export class LineraClient {
 
       return result.data;
     } catch (error: any) {
-      // In mock mode, return success
-      console.warn("[LineraClient] Mutation in mock mode:", mutation);
-      return { success: true } as T;
+      console.error("[LineraClient] Mutation error:", error);
+      throw error;
     }
-  }
-
-  /**
-   * Execute GraphQL query in testnet mode (direct API call)
-   */
-  private async executeTestnetQuery<T>(graphqlQuery: string): Promise<T> {
-    console.log('[LineraClient] Testnet query:', graphqlQuery);
-    
-    // For now, return mock data for development
-    // In production, this would make actual API calls to validators
-    const mockData: any = {
-      eventInfo: {
-        eventName: "Test Event",
-        organizer: this.chainId,
-        description: "Test event description",
-        eventDate: Date.now().toString(),
-        location: "Test Location",
-        category: "Technology",
-        badgeMetadataUri: "ipfs://test",
-        maxSupply: 100,
-        mintedCount: 0,
-        isActive: true,
-      },
-      allBadges: [],
-      mintedCount: 0,
-      isActive: true,
-    };
-    
-    return mockData as T;
-  }
-
-  /**
-   * Execute GraphQL mutation in testnet mode (direct API call)
-   */
-  private async executeTestnetMutation<T>(mutation: string): Promise<T> {
-    console.log('[LineraClient] Testnet mutation:', mutation);
-    console.log('[LineraClient] ⚠️  In testnet development mode - mutations are simulated');
-    console.log('[LineraClient] 💡 To test real mutations, use the Linera CLI:');
-    console.log('[LineraClient]    linera wallet show');
-    console.log('[LineraClient]    linera service --port 8080');
-    
-    // Simulate success
-    return { success: true } as T;
   }
 
   /**

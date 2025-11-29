@@ -46,11 +46,16 @@
     // This provides a development mock when @linera/client is not installed.
     // The template allows hackathon judges to see proper Linera integration patterns.
     
-    console.log('[Linera Template] ⚠️  Running in development mode with mock SDK');
-    console.log('[Linera Template] 📦 To use production SDK:');
+    console.log('[Linera Template] ⚠️  Running in DEVELOPMENT MODE with mock SDK');
+    console.log('[Linera Template] ');
+    console.log('[Linera Template] 🎭 Mock Features:');
+    console.log('[Linera Template]   • Mock wallet & chain generation');
+    console.log('[Linera Template]   • Simulated blockchain operations');
+    console.log('[Linera Template]   • No real transactions (safe for testing)');
+    console.log('[Linera Template] ');
+    console.log('[Linera Template] 📦 To use PRODUCTION SDK with real blockchain:');
     console.log('[Linera Template]   1. npm install @linera/client');
-    console.log('[Linera Template]   2. Import map is already configured in layout.tsx');
-    console.log('[Linera Template]   3. The real SDK will load automatically');
+    console.log('[Linera Template]   2. The real SDK will replace this mock automatically');
     
     const LineraSDK = {
       // Initialize WASM (mock)
@@ -67,24 +72,12 @@
         }
         
         async createWallet() {
-          console.log('[Linera SDK] Creating wallet via faucet...');
+          console.log('[Linera SDK] Creating mock wallet for development...');
           
-          // In production, this would make an actual API call to the faucet
-          try {
-            const response = await fetch(`${this.url}/api/createWallet`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' }
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              return new LineraSDK.Wallet(data);
-            }
-          } catch (error) {
-            console.warn('[Linera SDK] Faucet unavailable, using mock wallet');
-          }
+          // Development mock - skip API calls and use mock data directly
+          // In production with real @linera/client, this would call the actual faucet API
+          console.log('[Linera SDK] ℹ️  Using mock wallet (install @linera/client for real faucet)');
           
-          // Fallback to mock wallet for testing
           const mockWallet = {
             json: JSON.stringify({
               chains: ['linera_' + Math.random().toString(36).substr(2, 16)],
@@ -97,29 +90,14 @@
         }
         
         async claimChain(client) {
-          console.log('[Linera SDK] Claiming chain from faucet...');
+          console.log('[Linera SDK] Claiming mock chain for development...');
           
-          // Mock chain ID
+          // Development mock - return mock chain ID directly
+          // In production with real @linera/client, this would call the actual faucet API
           const chainId = 'e476187f6ddfeb9d588c7e2d2c33e66b' + 
                          Math.random().toString(16).substr(2, 16);
           
-          try {
-            const response = await fetch(`${this.url}/api/claimChain`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                walletAddress: client.wallet?.address || 'mock'
-              })
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              return data.chainId || chainId;
-            }
-          } catch (error) {
-            console.warn('[Linera SDK] Using mock chain ID');
-          }
-          
+          console.log('[Linera SDK] ✅ Mock chain ID:', chainId);
           return chainId;
         }
       },
@@ -220,22 +198,18 @@
     };
     
     // Make SDK available globally (Official Linera Pattern)
-    window.linera = LineraSDK;
+    // Use lineraSDK to avoid conflict with CheCko extension's window.linera
+    window.lineraSDK = LineraSDK;
     window.lineraReady = true;
     
-    console.log('[Linera Template] ✅ SDK Ready!');
+    console.log('[Linera Template] ✅ Mock SDK Ready for Development!');
     console.log('[Linera Template] ');
-    console.log('[Linera Template] 📚 Official Resources:');
+    console.log('[Linera Template] 📚 Resources:');
     console.log('[Linera Template]   • Docs: https://linera.dev');
-    console.log('[Linera Template]   • Template: https://github.com/linera-io/linera-web');
     console.log('[Linera Template]   • Conway Testnet: https://faucet.testnet-conway.linera.net');
     console.log('[Linera Template] ');
-    console.log('[Linera Template] 🚀 Deployment Steps:');
-    console.log('[Linera Template]   1. cargo install linera-service --locked');
-    console.log('[Linera Template]   2. linera wallet init --faucet https://faucet.testnet-conway.linera.net');
-    console.log('[Linera Template]   3. linera wallet request-chain --faucet https://faucet.testnet-conway.linera.net');
-    console.log('[Linera Template]   4. cd contract && cargo build --release --target wasm32-unknown-unknown');
-    console.log('[Linera Template]   5. linera project publish-and-create');
+    console.log('[Linera Template] ℹ️  This is a development mock. Your app will work for demos,');
+    console.log('[Linera Template]    but transactions are simulated. Install @linera/client for production.');
     
     // Dispatch event to notify the app
     window.dispatchEvent(new Event('lineraReady'));
