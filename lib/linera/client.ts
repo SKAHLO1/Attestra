@@ -125,9 +125,9 @@ export class LineraClient {
       }
 
       // Create wallet via faucet
-      const faucet = await new lineraModule.Faucet(this.faucetUrl);
+      const faucet = new lineraModule.Faucet(this.faucetUrl);
       this.wallet = await faucet.createWallet();
-      this.client = await new lineraModule.Client(this.wallet);
+      this.client = new lineraModule.Client(this.wallet);
       
       // Claim a chain from the faucet
       this.chainId = await faucet.claimChain(this.client);
@@ -153,7 +153,7 @@ export class LineraClient {
       }
 
       this.wallet = await lineraModule.Wallet.fromJson(walletJson);
-      this.client = await new lineraModule.Client(this.wallet);
+      this.client = new lineraModule.Client(this.wallet);
       
       // Get default chain
       this.chainId = this.wallet.defaultChain() || "";
