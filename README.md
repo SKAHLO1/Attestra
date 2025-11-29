@@ -141,10 +141,34 @@ Provera supports both light and dark modes with:
 - Persistent theme selection
 
 ### Wallet Integration
-- Connect to Linera wallet
-- Display wallet address
+
+**Provera now supports two wallet connection methods:**
+
+#### 🔗 CheCko Browser Extension (Recommended)
+- **Persistent wallet** across browser sessions
+- **User-controlled keys** - You own your wallet
+- **Multi-chain support** - Manage multiple Linera microchains
+- **Standard Web3 UX** - Similar to MetaMask experience
+- **Installation**: [Get CheCko Extension](https://github.com/respeer-ai/linera-wallet)
+
+#### 🚰 Testnet Faucet (Demo Mode)
+- **Quick start** - No installation required
+- **Auto-connect** - Instant wallet creation
+- **Perfect for testing** - Ideal for development and demos
+- **Ephemeral** - Wallet resets when you close the browser
+
+**How it works:**
+1. Click "Connect Wallet" in the header
+2. Choose your preferred method:
+   - **CheCko Extension**: If installed, recommended for persistent wallet
+   - **Testnet Faucet**: Quick demo mode with auto-generated wallet
+3. App auto-selects based on availability (prefers extension if installed)
+
+**Features:**
+- Display wallet address with copy functionality
 - Sign transactions for badge claims
-- Disconnect functionality
+- Account balance display
+- Easy disconnect option
 
 ### Badge Categories
 - 🌐 **Conferences** - Multi-day events
