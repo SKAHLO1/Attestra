@@ -5,16 +5,6 @@
  */
 
 import {
-  initialize,
-  Client,
-  Wallet,
-  Faucet,
-  Application,
-  PrivateKeySigner,
-  type Signer,
-} from "@linera/client";
-
-import {
   ApplicationId,
   BadgeInfo,
   ChainId,
@@ -26,18 +16,20 @@ import {
   TransactionResponse,
 } from "./types";
 
+// SDK is loaded from import map into window.linera
 // Track WASM initialization
 let wasmInitialized = false;
 
 export class LineraClient {
-  private wallet: Wallet | null = null;
-  private client: Client | null = null;
-  private signer: Signer | null = null;
-  private application: Application | null = null;
+  private wallet: any = null;
+  private client: any = null;
+  private signer: any = null;
+  private application: any = null;
   private chainId: ChainId | null = null;
   private applicationId: ApplicationId | null = null;
   private faucetUrl: string = process.env.NEXT_PUBLIC_LINERA_FAUCET_URL || "https://faucet.conway.linera.io";
   private instanceId: string = Math.random().toString(36).slice(2, 9);
+  private isDemoMode: boolean = false; // Track if using demo wallet (no WASM)
 
   constructor(faucetUrl?: string) {
     if (faucetUrl) {
@@ -48,8 +40,8 @@ export class LineraClient {
   }
 
   /**
-   * Initialize Linera WASM module
-   * Must be called before using any other methods
+   * Initialize Linera WASM module (from window.linera)
+   * SDK is loaded via import map, this just checks readiness
    */
   async initialize(): Promise<void> {
     if (typeof window === "undefined") {
@@ -61,22 +53,74 @@ export class LineraClient {
       return;
     }
 
-    try {
-      console.log("[LineraClient] Initializing WASM module...");
-      await initialize();
-      wasmInitialized = true;
-      console.log("[LineraClient] ✅ WASM initialized successfully");
-    } catch (error) {
-      console.error("[LineraClient] ❌ Failed to initialize WASM:", error);
-      throw new Error("Failed to initialize Linera WASM module");
+    // SDK should be loaded via import map already
+    if (!window.linera) {
+      throw new Error("Linera SDK not loaded. Ensure init.js has run.");
     }
+
+    wasmInitialized = true;
+    console.log("[LineraClient] ✅ Using SDK from import map");
+  }
+
+  /**
+   * Connect to Linera using demo wallet from env (no WASM needed!)
+   */
+  async connectWithDemoWallet(): Promise<LineraWalletInfo> {
+    console.log(`[LineraClient:${this.instanceId}] connectWithDemoWallet() called`);
+
+    const demoPrivateKey = process.env.NEXT_PUBLIC_DEMO_WALLET_PRIVATE_KEY;
+    const demoAddress = process.env.NEXT_PUBLIC_DEMO_WALLET_ADDRESS;
+
+    if (!demoPrivateKey || !demoAddress) {
+      throw new Error(
+        "Demo wallet not configured. Please add NEXT_PUBLIC_DEMO_WALLET_PRIVATE_KEY and NEXT_PUBLIC_DEMO_WALLET_ADDRESS to your .env.local file."
+      );
+    }
+
+    if (demoPrivateKey === 'your_private_key_here' || demoAddress === 'your_wallet_address_here') {
+      throw new Error(
+        "Please replace placeholder values in .env.local with your actual wallet credentials."
+      );
+    }
+
+    console.log(`[LineraClient:${this.instanceId}] Using demo wallet:`, demoAddress);
+
+    // Get chain ID from env or use default
+    const chainId = process.env.NEXT_PUBLIC_DEMO_CHAIN_ID || this.chainId || 'demo-chain';
+
+    // Mark as demo mode (no WASM operations)
+    this.isDemoMode = true;
+    this.chainId = chainId;
+
+    // Return mock wallet info without initializing WASM
+    const walletInfo: LineraWalletInfo = {
+      address: demoAddress,
+      chainId: chainId,
+      balance: '1000.0', // Mock balance - check via CLI for real balance
+      walletType: 'faucet', // Mark as faucet type for compatibility
+    };
+
+    console.log(`[LineraClient:${this.instanceId}] ✅ Connected with demo wallet (Demo Mode)`);
+    return walletInfo;
   }
 
   /**
    * Connect to Linera via faucet (creates new wallet with chain)
+   * WARNING: This requires WASM which may have threading issues
    */
   async connect(): Promise<LineraWalletInfo> {
     console.log(`[LineraClient:${this.instanceId}] connect() called`);
+
+    // Check if demo wallet is configured - use it instead!
+    const demoPrivateKey = process.env.NEXT_PUBLIC_DEMO_WALLET_PRIVATE_KEY;
+    const demoAddress = process.env.NEXT_PUBLIC_DEMO_WALLET_ADDRESS;
+
+    if (demoPrivateKey && demoAddress && 
+        demoPrivateKey !== 'your_private_key_here' && 
+        demoAddress !== 'your_wallet_address_here') {
+      console.log(`[LineraClient:${this.instanceId}] Demo wallet configured, using it instead of faucet`);
+      return this.connectWithDemoWallet();
+    }
 
     try {
       if (!wasmInitialized) {
@@ -84,6 +128,14 @@ export class LineraClient {
       }
 
       console.log(`[LineraClient:${this.instanceId}] Creating wallet from faucet...`);
+      
+      // Check if SDK is available
+      if (!(window as any).linera) {
+        throw new Error("Linera SDK not loaded. Please rebuild without threading support.");
+      }
+      
+      const { Faucet, Client, PrivateKeySigner } = (window as any).linera;
+      
       const faucet = new Faucet(this.faucetUrl);
       this.wallet = await faucet.createWallet();
       
@@ -126,6 +178,8 @@ export class LineraClient {
       }
 
       console.log(`[LineraClient:${this.instanceId}] Connecting with private key...`);
+      
+      const { Faucet, Client, PrivateKeySigner } = (window as any).linera;
       
       // Create signer from private key
       this.signer = new PrivateKeySigner(privateKey);
@@ -175,11 +229,18 @@ export class LineraClient {
     console.log(`[LineraClient:${this.instanceId}] setApplicationId called`);
     console.log(`[LineraClient:${this.instanceId}] - applicationId:`, applicationId);
     
+    // Store application ID
+    this.applicationId = applicationId;
+
+    // In demo mode, skip WASM operations
+    if (this.isDemoMode) {
+      console.log(`[LineraClient:${this.instanceId}] ⚠️ Demo mode: Skipping application connection (no WASM)`);
+      return;
+    }
+    
     if (!this.client) {
       throw new Error("Client not connected. Call connect() first.");
     }
-    
-    this.applicationId = applicationId;
     
     try {
       console.log(`[LineraClient:${this.instanceId}] Getting application...`);

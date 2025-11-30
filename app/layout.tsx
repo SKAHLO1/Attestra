@@ -29,11 +29,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Import map for Linera SDK - loads from /public */}
+        <script
+          type="importmap"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              imports: {
+                "@linera/client": "/linera-sdk/linera.js"
+              }
+            })
+          }}
+        />
+      </head>
       <body className={`font-sans antialiased`}>
-        {/* Linera Import Map - Loaded via SDK loader */}
+        {/* Initialize Linera SDK from import map */}
         <Script
-          src="/linera-sdk-loader.js"
-          strategy="beforeInteractive"
+          src="/linera-sdk/init.js"
+          strategy="lazyOnload"
+          type="module"
         />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <WalletProvider>{children}</WalletProvider>

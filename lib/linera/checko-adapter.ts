@@ -20,6 +20,8 @@ declare global {
   interface Window {
     linera?: CheckoProvider;
     lineraExtension?: CheckoProvider;
+    checko?: CheckoProvider; // Alternative injection name
+    lineraProvider?: CheckoProvider; // Another possible name
   }
 }
 
@@ -34,8 +36,24 @@ export class CheckoWalletAdapter {
   static isInstalled(): boolean {
     if (typeof window === 'undefined') return false;
     
-    // Check for CheCko extension provider
-    return !!(window.linera?.requestAccounts || window.lineraExtension?.requestAccounts);
+    // Debug: Log what's available
+    console.log('[CheckoAdapter] Checking for extension...');
+    console.log('[CheckoAdapter] window.linera:', window.linera);
+    console.log('[CheckoAdapter] window.lineraExtension:', window.lineraExtension);
+    console.log('[CheckoAdapter] window.checko:', window.checko);
+    console.log('[CheckoAdapter] window.lineraProvider:', window.lineraProvider);
+    console.log('[CheckoAdapter] All window properties:', Object.keys(window).filter(k => k.toLowerCase().includes('linera') || k.toLowerCase().includes('checko')));
+    
+    // Check for CheCko extension provider (try all possible injection points)
+    const isInstalled = !!(
+      window.linera?.requestAccounts || 
+      window.lineraExtension?.requestAccounts ||
+      window.checko?.requestAccounts ||
+      window.lineraProvider?.requestAccounts
+    );
+    console.log('[CheckoAdapter] Extension installed:', isInstalled);
+    
+    return isInstalled;
   }
 
   /**
@@ -46,8 +64,8 @@ export class CheckoWalletAdapter {
       throw new Error('CheCko extension only available in browser');
     }
 
-    // Try both possible injection points
-    const provider = window.linera || window.lineraExtension;
+    // Try all possible injection points
+    const provider = window.linera || window.lineraExtension || window.checko || window.lineraProvider;
     
     if (!provider || !provider.requestAccounts) {
       throw new Error('CheCko extension not found. Please install the CheCko wallet extension.');

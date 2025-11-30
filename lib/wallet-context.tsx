@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
-import { getLineraClient } from "./linera"
+import { getLineraClient, type LineraClient } from "./linera"
 import { CheckoWalletAdapter } from "./linera/checko-adapter"
 import type { LineraWalletInfo } from "./linera/types"
 
@@ -22,7 +22,7 @@ interface WalletContextType {
   connect: (type: WalletType) => Promise<void>
   disconnect: () => void
   switchChain: (chainId: number) => Promise<void>
-  lineraClient?: ReturnType<typeof getLineraClient>
+  lineraClient?: LineraClient | null
   hasExtension: boolean // Whether CheCko extension is detected
 }
 
@@ -31,20 +31,15 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined)
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<WalletAccount | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [lineraClient] = useState(() => getLineraClient())
+  const [lineraClient, setLineraClient] = useState<LineraClient | null>(null)
   const [checkoAdapter] = useState(() => new CheckoWalletAdapter())
   const [hasExtension, setHasExtension] = useState(false)
-  const [autoConnectAttempted, setAutoConnectAttempted] = useState(false)
 
-  const connect = useCallback(async (type: WalletType, isAutoConnect = false) => {
+  const connect = useCallback(async (type: WalletType) => {
     setIsConnecting(true)
     try {
       if (type === "linera-extension") {
         // Use CheCko browser extension
-        if (isAutoConnect) {
-          console.log('[WalletContext] Auto-connecting to CheCko extension...')
-        }
-        
         if (!CheckoWalletAdapter.isInstalled()) {
           throw new Error('CheCko wallet extension is not installed. Please install it from https://github.com/respeer-ai/linera-wallet')
         }
@@ -57,17 +52,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           balance: walletInfo.balance,
           chainId: walletInfo.chainId,
         })
-        
-        if (isAutoConnect) {
-          console.log('[WalletContext] ✅ Connected to CheCko extension')
-          console.log('[WalletContext] Chain ID:', walletInfo.chainId)
-        }
       } else if (type === "linera-faucet") {
-        // Use faucet-based wallet (original method)
-        if (isAutoConnect) {
-          console.log('[WalletContext] Auto-connecting to testnet faucet...')
+        // Use faucet-based wallet - lazy load client
+        // Lazy load Linera client (only loads in browser, avoids SSR)
+        let client = lineraClient;
+        if (!client) {
+          console.log('[WalletContext] Loading Linera SDK...')
+          client = await getLineraClient();
+          setLineraClient(client);
         }
-        const walletInfo: LineraWalletInfo = await lineraClient.connect()
+        
+        const walletInfo: LineraWalletInfo = await client.connect()
         
         setAccount({
           address: walletInfo.address,
@@ -75,11 +70,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           balance: walletInfo.balance,
           chainId: walletInfo.chainId,
         })
-        
-        if (isAutoConnect) {
-          console.log('[WalletContext] ✅ Auto-connected to testnet faucet')
-          console.log('[WalletContext] Chain ID:', walletInfo.chainId)
-        }
       } else {
         throw new Error(`Wallet type "${type}" is not supported. Please use linera-extension or linera-faucet.`)
       }
@@ -94,7 +84,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const disconnect = useCallback(() => {
     if (account?.type === "linera-extension") {
       checkoAdapter.disconnect()
-    } else if (account?.type === "linera-faucet") {
+    } else if (account?.type === "linera-faucet" && lineraClient) {
       lineraClient.disconnect()
     }
     setAccount(null)
@@ -114,38 +104,33 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [account],
   )
 
-  // Detect CheCko extension on mount
+  // Detect CheCko extension on mount (with retry for async loading)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const extensionInstalled = CheckoWalletAdapter.isInstalled()
-      setHasExtension(extensionInstalled)
-      console.log('[WalletContext] CheCko extension detected:', extensionInstalled)
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      const checkExtension = () => {
+        attempts++;
+        const extensionInstalled = CheckoWalletAdapter.isInstalled()
+        setHasExtension(extensionInstalled)
+        console.log(`[WalletContext] CheCko extension check (attempt ${attempts}):`, extensionInstalled)
+        
+        // Retry if not found and haven't exceeded max attempts
+        if (!extensionInstalled && attempts < maxAttempts) {
+          console.log('[WalletContext] Extension not found, retrying in 500ms...')
+          setTimeout(checkExtension, 500);
+        } else if (extensionInstalled) {
+          console.log('[WalletContext] ✅ CheCko extension detected!')
+        } else {
+          console.log('[WalletContext] CheCko extension not found after', maxAttempts, 'attempts')
+        }
+      };
+      
+      // Start checking
+      checkExtension();
     }
   }, [])
-
-  // Auto-connect in testnet development mode
-  useEffect(() => {
-    if (!autoConnectAttempted && !account && typeof window !== 'undefined') {
-      console.log('[WalletContext] Checking for auto-connect...')
-      setAutoConnectAttempted(true)
-      
-      // Prefer extension if available, otherwise use faucet
-      const walletType: WalletType = hasExtension ? 'linera-extension' : 'linera-faucet'
-      console.log(`[WalletContext] Auto-connecting to ${walletType}...`)
-      
-      connect(walletType, true).catch(err => {
-        console.error('[WalletContext] Auto-connect failed:', err)
-        
-        // If extension fails and it was our first choice, fallback to faucet
-        if (walletType === 'linera-extension') {
-          console.log('[WalletContext] Falling back to faucet method...')
-          connect('linera-faucet', true).catch(fallbackErr => {
-            console.error('[WalletContext] Fallback connect failed:', fallbackErr)
-          })
-        }
-      })
-    }
-  }, [autoConnectAttempted, account, hasExtension, connect])
 
   return (
     <WalletContext.Provider
