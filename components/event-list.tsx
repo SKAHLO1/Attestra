@@ -23,13 +23,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import QRCodeGenerator from "./qr-code-generator"
-import { useEventOperations } from "@/lib/linera"
+import { useEventOperations } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
 
 interface Event {
   id: string
   name: string
-  microchainId: string
+  eventId: string
   badgesMinted: number
   attendees: number
   status: string
@@ -43,7 +43,7 @@ interface EventListProps {
 
 export default function EventList({ events, onEventUpdated }: EventListProps) {
   const applicationId = getApplicationId()
-  const { setEventActive, loading: operationLoading } = useEventOperations(applicationId)
+  const { setEventActive, loading: operationLoading } = useEventOperations()
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [showAttendees, setShowAttendees] = useState(false)
@@ -53,16 +53,9 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
     setActionLoading(true)
     try {
       console.log('[EventList] Deactivating event...')
-      const result = await setEventActive(false)
-      
-      if (result.success) {
-        console.log('[EventList] Event deactivated successfully')
-        // Refresh the event data
-        onEventUpdated?.()
-      } else {
-        console.error('[EventList] Failed to deactivate event:', result.error)
-        alert('Failed to deactivate event: ' + result.error)
-      }
+      await setEventActive(event.id, false)
+      console.log('[EventList] Event deactivated successfully')
+      onEventUpdated?.()
     } catch (error: any) {
       console.error('[EventList] Error deactivating event:', error)
       alert('Error deactivating event: ' + error.message)
@@ -75,16 +68,9 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
     setActionLoading(true)
     try {
       console.log('[EventList] Activating event...')
-      const result = await setEventActive(true)
-      
-      if (result.success) {
-        console.log('[EventList] Event activated successfully')
-        // Refresh the event data
-        onEventUpdated?.()
-      } else {
-        console.error('[EventList] Failed to activate event:', result.error)
-        alert('Failed to activate event: ' + result.error)
-      }
+      await setEventActive(event.id, true)
+      console.log('[EventList] Event activated successfully')
+      onEventUpdated?.()
     } catch (error: any) {
       console.error('[EventList] Error activating event:', error)
       alert('Error activating event: ' + error.message)
@@ -111,7 +97,7 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-lg">{event.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground font-mono mt-1">{event.microchainId}</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-1">{event.eventId}</p>
                   </div>
                   <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
                     {event.status}
@@ -203,8 +189,8 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
                             <p className="text-base font-semibold">{event.name}</p>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-muted-foreground">Microchain ID</p>
-                            <p className="text-xs font-mono bg-muted p-2 rounded break-all">{event.microchainId}</p>
+                            <p className="text-sm font-medium text-muted-foreground">Event ID</p>
+                            <p className="text-xs font-mono bg-muted p-2 rounded break-all">{event.eventId}</p>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -235,9 +221,9 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
                           <p className="text-sm text-muted-foreground mb-2">🔗 Quick Actions</p>
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" className="flex-1" onClick={() => {
-                              navigator.clipboard.writeText(event.microchainId)
+                              navigator.clipboard.writeText(event.eventId)
                             }}>
-                              Copy Microchain ID
+                              Copy Event ID
                             </Button>
                             <Button size="sm" variant="outline" className="flex-1" onClick={() => {
                               setShowDetails(false)

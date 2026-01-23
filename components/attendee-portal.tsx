@@ -17,8 +17,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useEventOperations, useUserBadges } from "@/lib/linera"
+import { useEventOperations, useUserBadges } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
+import { useAuth } from "@/lib/firebase/auth-context"
+import { LogOut, User } from "lucide-react"
 
 interface ClaimedBadge {
   id: string
@@ -35,8 +37,9 @@ interface AttendeePortalProps {
 
 export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const applicationId = getApplicationId()
-  const { claimBadge, validateClaimCode, loading, error } = useEventOperations(applicationId)
-  const { badges: userBadges, refetch } = useUserBadges(applicationId)
+  const { user, userProfile, logout } = useAuth()
+  const { claimBadge, validateClaimCode, loading, error } = useEventOperations()
+  const { badges: userBadges, refetch } = useUserBadges()
   
   const [claimCode, setClaimCode] = useState("")
   const [claimedBadges, setClaimedBadges] = useState<ClaimedBadge[]>([])
@@ -46,15 +49,19 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const [claimStatus, setClaimStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Convert blockchain badges to ClaimedBadge format
+  const handleLogout = async () => {
+    await logout()
+  }
+
+  // Convert Firebase badges to ClaimedBadge format
   useEffect(() => {
     if (userBadges) {
       const converted: ClaimedBadge[] = userBadges.map((badge) => ({
-        id: badge.tokenId.toString(),
+        id: badge.tokenId,
         eventName: badge.eventName,
-        claimedAt: new Date(badge.claimedAt),
-        txHash: `Token #${badge.tokenId}`,
-        claimCode: "Claimed",
+        claimedAt: badge.claimedAt || new Date(),
+        txHash: badge.aleoTxId || `Token #${badge.tokenId}`,
+        claimCode: badge.claimCode,
         status: "confirmed" as const,
       }))
       setClaimedBadges(converted)
@@ -84,22 +91,15 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
     setClaimStatus(null)
 
     try {
-      const result = await claimBadge(claimCode)
+      const badgeId = await claimBadge(claimCode)
       
-      if (result.success) {
-        setClaimStatus({ 
-          type: 'success', 
-          message: `Badge claimed successfully! TX: ${result.txHash?.slice(0, 10)}...` 
-        })
-        setClaimCode("")
-        // Refresh badge list
-        setTimeout(() => refetch(), 2000)
-      } else {
-        setClaimStatus({ 
-          type: 'error', 
-          message: result.error || 'Failed to claim badge' 
-        })
-      }
+      setClaimStatus({ 
+        type: 'success', 
+        message: `Badge claimed successfully!` 
+      })
+      setClaimCode("")
+      // Refresh badge list
+      setTimeout(() => refetch(), 2000)
     } catch (error: any) {
       setClaimStatus({ 
         type: 'error', 
@@ -146,6 +146,23 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* User Info Bar */}
+      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+            <User className="w-5 h-5 text-accent" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">{userProfile?.displayName || user?.email}</p>
+            <p className="text-xs text-muted-foreground">Attendee</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2">
+          <LogOut className="w-4 h-4" />
+          Logout
+        </Button>
+      </div>
+
       <div>
         <h2 className="text-3xl font-bold bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
           Claim Your Badge
@@ -175,7 +192,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                 <div>
                   <label className="block text-sm font-medium mb-2">Claim Code</label>
                   <Input
-                    placeholder="Enter claim code (e.g., LINERA-2025-ABC123)"
+                    placeholder="Enter claim code (e.g., ALEO-2025-ABC123)"
                     value={claimCode}
                     onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
                     className="bg-input font-mono"

@@ -1,104 +1,110 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useEventOperations } from "@/lib/linera"
-import { getApplicationId } from "@/lib/config"
-import { EventCategory } from "@/lib/linera/types"
-import { useWallet } from "@/lib/wallet-context"
+import { useEventOperations } from "@/lib/services"
+import { EventCategory } from "@/lib/services/types"
+import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
 
 interface EventFormProps {
   onSubmit: (data: any) => void
   onSuccess?: () => void
 }
 
+const EVENT_CREATION_FEE = 0.1 // 0.1 LEO
+
 export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
-  const applicationId = getApplicationId()
-  const { createEvent, loading: creating, error: createError } = useEventOperations(applicationId)
-  const { account, isConnected } = useWallet()
-  
-  // Debug: Log connection status
-  useEffect(() => {
-    console.log('[EventForm] Component mounted')
-    console.log('[EventForm] Application ID:', applicationId)
-    console.log('[EventForm] Is Connected:', isConnected)
-    console.log('[EventForm] Account:', account)
-  }, [])
-  
-  // Debug: Log when connection state changes
-  useEffect(() => {
-    console.log('[EventForm] Connection state changed - isConnected:', isConnected)
-    if (isConnected && account) {
-      console.log('[EventForm] ✅ Wallet connected:', account.address)
-    } else {
-      console.log('[EventForm] ⚠️ Wallet not connected')
-    }
-  }, [isConnected, account])
+  const { createEvent, loading: creating, error: createError } = useEventOperations()
+  const { publicKey, requestExecution } = useWallet()
   
   const [formData, setFormData] = useState({
-    eventName: "",
+    name: "",
     description: "",
-    eventDate: "",
+    startDate: "",
+    endDate: "",
     location: "",
-    category: "Meetup" as EventCategory,
-    badgeMetadataUri: "",
-    maxSupply: 100,
+    category: "Conference" as EventCategory,
+    imageUrl: "",
+    maxAttendees: 100,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.eventName.trim()) return
+    if (!formData.name.trim()) return
+
+    if (!publicKey) {
+      alert("Please connect your wallet to create an event")
+      return
+    }
 
     setIsSubmitting(true)
     setSuccessMessage("")
 
     try {
-      // Convert date string to timestamp (microseconds)
-      const eventDate = formData.eventDate 
-        ? new Date(formData.eventDate).getTime() * 1000 
-        : Date.now() * 1000
-
-      console.log("Attempting to create event...", formData)
+      // Charge event creation fee (0.1 LEO)
+      console.log(`[EventForm] Processing payment of ${EVENT_CREATION_FEE} LEO for event creation...`)
       
-      const result = await createEvent({
-        eventName: formData.eventName,
+      if (requestExecution) {
+        try {
+          // Create Aleo transaction to transfer fee
+          const feeInMicrocredits = Math.floor(EVENT_CREATION_FEE * 1_000_000) // Convert LEO to microcredits
+          
+          const aleoTransaction = {
+            program: "credits.aleo",
+            functionName: "transfer_public",
+            inputs: [
+              "aleo1nfvg0z6l36736agtdqjznxcrmw5sj505uxkqnqx3wlyl86hk4qxquds9yf", // Your wallet address
+              `${feeInMicrocredits}u64`
+            ],
+            fee: 100000, // 0.1 credits for transaction fee
+          } as any
+          
+          console.log('[EventForm] Requesting execution from wallet...')
+          const txId = await requestExecution(aleoTransaction)
+          console.log('[EventForm] Transaction submitted:', txId)
+          
+          // Wait a moment for transaction to be broadcast
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        } catch (txError: any) {
+          console.error('[EventForm] Transaction failed:', txError)
+          throw new Error(`Payment failed: ${txError.message}`)
+        }
+      }
+      
+      const eventId = await createEvent({
+        name: formData.name,
         description: formData.description,
-        eventDate,
+        startDate: new Date(formData.startDate || Date.now()),
+        endDate: new Date(formData.endDate || Date.now()),
         location: formData.location,
         category: formData.category,
-        badgeMetadataUri: formData.badgeMetadataUri || "ipfs://default",
-        maxSupply: formData.maxSupply,
+        imageUrl: formData.imageUrl,
+        maxAttendees: formData.maxAttendees,
+        isActive: true,
       })
 
-      console.log("Event creation result:", result)
-
-      if (result.success) {
-        setSuccessMessage(`Event created successfully! TX: ${result.txHash?.slice(0, 10)}...`)
-        // Also call the legacy onSubmit callback
-        onSubmit(formData)
-        // Reset form
-        setFormData({
-          eventName: "",
-          description: "",
-          eventDate: "",
-          location: "",
-          category: "Meetup" as EventCategory,
-          badgeMetadataUri: "",
-          maxSupply: 100,
-        })
-        onSuccess?.()
-      }
+      setSuccessMessage(`Event created successfully! Fee: ${EVENT_CREATION_FEE} LEO`)
+      onSubmit(formData)
+      setFormData({
+        name: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        location: "",
+        category: "Conference" as EventCategory,
+        imageUrl: "",
+        maxAttendees: 100,
+      })
+      onSuccess?.()
     } catch (error: any) {
       console.error("Failed to create event:", error)
-      // Error will be shown via createError state from hook
     } finally {
       setIsSubmitting(false)
     }
@@ -108,16 +114,16 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
     <Card className="border-2 border-primary/20">
       <CardHeader>
         <CardTitle>Create New Event</CardTitle>
-        <CardDescription>Deploy a new microchain for your event</CardDescription>
+        <CardDescription>Create a new event and issue attendance badges</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">Event Name *</label>
             <Input
-              placeholder="e.g., Linera Hackathon 2025"
-              value={formData.eventName}
-              onChange={(e) => setFormData({ ...formData, eventName: e.target.value })}
+              placeholder="e.g., Aleo Hackathon 2025"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="bg-input"
               required
             />
@@ -135,24 +141,34 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Event Date</label>
+              <label className="block text-sm font-medium mb-2">Start Date</label>
               <Input
                 type="datetime-local"
-                value={formData.eventDate}
-                onChange={(e) => setFormData({ ...formData, eventDate: e.target.value })}
+                value={formData.startDate}
+                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                 className="bg-input"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Location</label>
+              <label className="block text-sm font-medium mb-2">End Date</label>
               <Input
-                placeholder="e.g., San Francisco, CA"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                 className="bg-input"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Location</label>
+            <Input
+              placeholder="e.g., San Francisco, CA"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              className="bg-input"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -175,34 +191,28 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Max Badges</label>
+              <label className="block text-sm font-medium mb-2">Max Attendees</label>
               <Input
                 type="number"
                 min="1"
                 placeholder="100"
-                value={formData.maxSupply}
-                onChange={(e) => setFormData({ ...formData, maxSupply: parseInt(e.target.value) || 100 })}
+                value={formData.maxAttendees}
+                onChange={(e) => setFormData({ ...formData, maxAttendees: parseInt(e.target.value) || 100 })}
                 className="bg-input"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Badge Image URI (optional)</label>
+            <label className="block text-sm font-medium mb-2">Event Image URL (optional)</label>
             <Input
-              placeholder="ipfs://QmXxxx or https://..."
-              value={formData.badgeMetadataUri}
-              onChange={(e) => setFormData({ ...formData, badgeMetadataUri: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+              value={formData.imageUrl}
+              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
               className="bg-input"
             />
-            <p className="text-xs text-muted-foreground mt-1">Leave empty for default badge image</p>
+            <p className="text-xs text-muted-foreground mt-1">Leave empty for default image</p>
           </div>
-
-          {!isConnected && (
-            <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-              <p className="text-sm text-yellow-700">⚠️ Wallet not connected. Please connect your Linera wallet first.</p>
-            </div>
-          )}
 
           {successMessage && (
             <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
@@ -213,16 +223,13 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
           {createError && (
             <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
               <p className="text-sm text-destructive font-semibold">Error: {createError}</p>
-              {!isConnected && (
-                <p className="text-xs text-destructive/80 mt-1">Make sure your Linera wallet is connected.</p>
-              )}
             </div>
           )}
 
           <div className="flex gap-3 pt-4">
             <Button 
               type="submit" 
-              disabled={isSubmitting || creating || !formData.eventName.trim() || !isConnected}
+              disabled={isSubmitting || creating || !formData.name.trim()}
               className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90"
             >
               {isSubmitting || creating ? (
@@ -231,9 +238,9 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                   </svg>
-                  Creating Event on Blockchain...
+                  Creating Event...
                 </span>
-              ) : "Deploy Microchain & Create Event"}
+              ) : "Create Event"}
             </Button>
           </div>
         </form>

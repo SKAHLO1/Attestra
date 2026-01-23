@@ -14,9 +14,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { useAllEventBadges } from "@/lib/linera"
+import { useAllEventBadges } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
-import type { EventCategory } from "@/lib/linera/types"
+import type { EventCategory } from "@/lib/services/types"
 
 interface BadgeData {
   id: string
@@ -42,36 +42,40 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
   const [selectedBadge, setSelectedBadge] = useState<BadgeData | null>(null)
   
   const applicationId = getApplicationId()
-  const { badges: lineraBadges, loading, error } = useAllEventBadges(applicationId)
+  const { badges: userBadges, loading, error } = useAllEventBadges(applicationId)
 
-  // Convert Linera badges to BadgeData format
+  // Convert Firebase badges to BadgeData format
   const badges: BadgeData[] = useMemo(() => {
-    if (!lineraBadges) return []
+    if (!userBadges) return []
     
-    return lineraBadges.map((badge) => {
+    return userBadges.map((badge) => {
       const categoryLowercase = badge.category.toLowerCase() as "conference" | "hackathon" | "meetup" | "workshop"
       
       return {
-        id: badge.tokenId.toString(),
+        id: badge.tokenId,
         eventName: badge.eventName,
         issuer: badge.owner.slice(0, 10) + '...',
-        claimedAt: new Date(badge.claimedAt),
+        claimedAt: badge.claimedAt || new Date(),
         image: getCategoryEmoji(badge.category),
         verified: true,
         category: categoryLowercase,
-        txHash: `Token ID: ${badge.tokenId}`,
+        txHash: badge.aleoTxId || `Token ID: ${badge.tokenId}`,
         contractAddress: applicationId,
-        tokenId: badge.tokenId.toString(),
+        tokenId: badge.tokenId,
         description: `Proof of attendance badge for ${badge.eventName}`,
       }
     })
-  }, [lineraBadges, applicationId])
+  }, [userBadges, applicationId])
 
-  const getCategoryEmoji = (category: EventCategory) => {
+  const getCategoryEmoji = (category: string) => {
     const categoryMap: Record<string, string> = {
+      conference: '🌐',
       Conference: '🌐',
+      hackathon: '🏆',
       Hackathon: '🏆',
+      meetup: '🎓',
       Meetup: '🎓',
+      workshop: '🔒',
       Workshop: '🔒',
     }
     return categoryMap[category] || '🎫'
@@ -151,7 +155,7 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
         <h2 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
           Your Badge Portfolio
         </h2>
-        <p className="text-muted-foreground mt-2">All your verified attendance badges on the Linera network</p>
+        <p className="text-muted-foreground mt-2">All your verified attendance badges on Aleo blockchain</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
