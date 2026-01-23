@@ -11,7 +11,7 @@ export interface QRCodeData {
 export function generateClaimCode(eventId: string, index: number): string {
   const timestamp = Date.now().toString(36).toUpperCase()
   const random = Math.random().toString(36).substring(2, 8).toUpperCase()
-  return `LINERA-${eventId.slice(0, 4).toUpperCase()}-${timestamp}-${random}`
+  return `LEO-${eventId.slice(0, 4).toUpperCase()}-${timestamp}-${random}`
 }
 
 export function encodeQRData(data: QRCodeData): string {
@@ -40,8 +40,8 @@ export function decodeQRData(encoded: string): QRCodeData | null {
 }
 
 export function isClaimCodeValid(claimCode: string): boolean {
-  // Validate claim code format: LINERA-XXXX-XXXXXXXXX-XXXXXX
-  const pattern = /^LINERA-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+$/
+  // Validate claim code format: LEO-XXXX-XXXXXXXXX-XXXXXX
+  const pattern = /^LEO-[A-Z0-9]+-[A-Z0-9]+-[A-Z0-9]+$/
   return pattern.test(claimCode)
 }
 

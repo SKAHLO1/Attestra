@@ -13,8 +13,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { generateClaimCode, generateQRCodeURL, encodeQRData, type QRCodeData } from "@/lib/qr-utils"
-import { useEventOperations } from "@/lib/linera"
+import { useEventOperations } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
+import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
 
 interface QRCodeGeneratorProps {
   eventId: string
@@ -22,21 +23,59 @@ interface QRCodeGeneratorProps {
   issuer: string
 }
 
+const BADGE_CREATION_FEE = 0.001 // 0.001 LEO per badge
+
 export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGeneratorProps) {
   const applicationId = getApplicationId()
-  const { addClaimCodes, loading: operationLoading } = useEventOperations(applicationId)
+  const { addClaimCodes, loading: operationLoading } = useEventOperations()
+  const { publicKey, requestExecution } = useWallet()
   const [generatedCodes, setGeneratedCodes] = useState<Array<{ code: string; qrUrl: string }>>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const handleGenerateQRCodes = async (count = 10) => {
+    if (!publicKey) {
+      setError("Please connect your wallet to generate badges")
+      return
+    }
+
     setIsGenerating(true)
     setError(null)
     setSuccessMessage(null)
 
     try {
-      // Generate claim codes and QR codes
+      const totalFee = BADGE_CREATION_FEE * count
+      console.log(`[QRCodeGenerator] Processing payment of ${totalFee} LEO for ${count} badges...`)
+      
+      // Process fee payment via Aleo wallet
+      if (requestExecution) {
+        try {
+          const feeInMicrocredits = Math.floor(totalFee * 1_000_000) // Convert LEO to microcredits
+          
+          const aleoTransaction = {
+            program: "credits.aleo",
+            functionName: "transfer_public",
+            inputs: [
+              "aleo1nfvg0z6l36736agtdqjznxcrmw5sj505uxkqnqx3wlyl86hk4qxquds9yf", // Your wallet address
+              `${feeInMicrocredits}u64`
+            ],
+            fee: 50000, // 0.05 credits for transaction fee
+          } as any
+          
+          console.log('[QRCodeGenerator] Requesting execution from wallet...')
+          const txId = await requestExecution(aleoTransaction)
+          console.log('[QRCodeGenerator] Transaction submitted:', txId)
+          
+          // Wait for transaction to be broadcast
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        } catch (txError: any) {
+          console.error('[QRCodeGenerator] Transaction failed:', txError)
+          throw new Error(`Payment failed: ${txError.message}`)
+        }
+      }
+
+      // Generate claim codes and QR codes with LEO prefix
       const newCodes = Array.from({ length: count }, (_, i) => {
         const claimCode = generateClaimCode(eventId, i + generatedCodes.length)
         const qrData: QRCodeData = {
@@ -55,17 +94,13 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
         }
       })
 
-      // Register claim codes on blockchain
-      console.log('[QRCodeGenerator] Registering claim codes on blockchain...')
+      // Register claim codes in Firebase
+      console.log('[QRCodeGenerator] Registering claim codes in Firebase...')
       const claimCodesOnly = newCodes.map(c => c.code)
-      const result = await addClaimCodes(claimCodesOnly)
+      await addClaimCodes(eventId, claimCodesOnly)
       
-      if (result.success) {
-        setGeneratedCodes([...generatedCodes, ...newCodes])
-        setSuccessMessage(`Successfully generated and registered ${count} claim codes on blockchain!`)
-      } else {
-        throw new Error(result.error || 'Failed to register claim codes')
-      }
+      setGeneratedCodes([...generatedCodes, ...newCodes])
+      setSuccessMessage(`Successfully generated ${count} badges! Fee: ${totalFee} LEO. All badges start with "LEO" prefix.`)
     } catch (err: any) {
       setError(err.message || 'Failed to generate and register claim codes')
       console.error('[QRCodeGenerator] Error:', err)
@@ -124,8 +159,10 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground">
-          💡 Generated codes are automatically registered on the blockchain for attendees to claim
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>💡 Generated codes are automatically registered on the blockchain for attendees to claim</p>
+          <p>💰 Fee: {BADGE_CREATION_FEE} LEO per badge (paid from connected wallet)</p>
+          <p>🏷️ All badges start with "LEO" prefix for easy identification</p>
         </div>
 
         {generatedCodes.length > 0 && (

@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import EventForm from "./event-form"
 import EventList from "./event-list"
-import { useEventInfo } from "@/lib/linera"
+import { useEventInfo } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
+import { useAuth } from "@/lib/firebase/auth-context"
+import { LogOut, User } from "lucide-react"
 
 interface OrganizerDashboardProps {
   wallet: string | null
@@ -14,30 +16,28 @@ interface OrganizerDashboardProps {
 
 export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) {
   const applicationId = getApplicationId()
-  const { eventInfo, loading, error, refetch } = useEventInfo(applicationId)
+  const { events: firebaseEvents, loading, error, refetch } = useEventInfo(applicationId)
+  const { user, userProfile, logout } = useAuth()
   
-  const [events, setEvents] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
 
-  // Convert event info to events array (for now, single event)
-  useEffect(() => {
-    if (eventInfo) {
-      setEvents([{
-        id: "1",
-        name: eventInfo.eventName,
-        microchainId: applicationId.slice(0, 20) + "...",
-        badgesMinted: eventInfo.mintedCount,
-        attendees: eventInfo.mintedCount, // Each mint = 1 attendee
-        status: eventInfo.isActive ? "active" : "inactive",
-        createdAt: new Date(eventInfo.eventDate / 1000), // Convert from microseconds
-      }])
-    }
-  }, [eventInfo, applicationId])
+  const handleLogout = async () => {
+    await logout()
+  }
+
+  // Map Firebase events to component format
+  const events = firebaseEvents.map(event => ({
+    id: event.id,
+    name: event.name,
+    eventId: event.id.slice(0, 20) + "...",
+    badgesMinted: 0, // TODO: Count from badges collection
+    attendees: 0, // TODO: Count from badges collection
+    status: event.isActive ? "active" : "inactive",
+    createdAt: event.createdAt,
+  }))
 
   const handleCreateEvent = (eventData: any) => {
     // Event creation is handled by the EventForm component
-    // In Linera architecture: one application = one event
-    // This updates the existing event on this microchain
     setShowForm(false)
     // Refetch to get updated event data
     setTimeout(() => {
@@ -58,24 +58,44 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Event Dashboard
-          </h2>
-          <p className="text-muted-foreground mt-1">Manage your event and issue attendance badges</p>
-          {eventInfo && (
-            <p className="text-xs text-muted-foreground mt-1">
-              📍 Managing: <span className="font-mono font-semibold">{eventInfo.eventName}</span>
-            </p>
-          )}
+      <div className="flex flex-col gap-4">
+        {/* User Info Bar */}
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{userProfile?.displayName || user?.email}</p>
+              <p className="text-xs text-muted-foreground">Event Organizer</p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2">
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
         </div>
-        <Button 
-          onClick={() => setShowForm(!showForm)} 
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
-        >
-          {showForm ? "Cancel" : (eventInfo ? "Update Event" : "+ Create Event")}
-        </Button>
+
+        {/* Dashboard Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Event Dashboard
+            </h2>
+            <p className="text-muted-foreground mt-1">Manage your events and issue attendance badges</p>
+            {events.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                📍 Managing: <span className="font-mono font-semibold">{events.length} event{events.length !== 1 ? 's' : ''}</span>
+              </p>
+            )}
+          </div>
+          <Button 
+            onClick={() => setShowForm(!showForm)} 
+            className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
+          >
+            {showForm ? "Cancel" : "+ Create Event"}
+          </Button>
+        </div>
       </div>
 
       {showForm && (
@@ -107,9 +127,8 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
       {error && !loading && (
         <Card className="border-yellow-500/50">
           <CardContent className="pt-6">
-            <p className="text-yellow-700 mb-2 font-medium">⚠️ No event configured yet</p>
-            <p className="text-sm text-muted-foreground">Click "Create Event" above to set up your event on this microchain.</p>
-            <p className="text-xs text-muted-foreground mt-2">💡 Note: Each Linera application manages one event. To create multiple events, deploy additional applications.</p>
+            <p className="text-yellow-700 mb-2 font-medium">⚠️ No events created yet</p>
+            <p className="text-sm text-muted-foreground">Click "Create Event" above to set up your first event.</p>
           </CardContent>
         </Card>
       )}

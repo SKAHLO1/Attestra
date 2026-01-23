@@ -13,38 +13,38 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWallet, type WalletType } from "@/lib/wallet-context"
 
-const WALLET_OPTIONS: Array<{ 
-  type: WalletType; 
-  name: string; 
-  icon: string; 
+const WALLET_OPTIONS: Array<{
+  type: WalletType;
+  name: string;
+  icon: string;
   description: string;
   badge?: string;
   requiresExtension?: boolean;
+  downloadUrl?: string;
 }> = [
-  {
-    type: "linera-extension",
-    name: "CheCko Wallet",
-    icon: "🔗",
-    description: "Connect using CheCko browser extension (recommended)",
-    badge: "Recommended",
-    requiresExtension: true,
-  },
-  {
-    type: "linera-faucet",
-    name: "Testnet Faucet",
-    icon: "🚰",
-    description: "Auto-connect with testnet wallet (demo mode)",
-    badge: "Demo",
-  },
-]
+    {
+      type: "Leo Wallet",
+      name: "Leo Wallet",
+      icon: "🦁",
+      description: "Connect using Leo Wallet browser extension for Aleo testnet",
+      badge: "Recommended",
+      requiresExtension: true,
+      downloadUrl: "https://leo.app/",
+    },
+  ]
 
 export default function WalletConnector() {
-  const { account, isConnecting, isConnected, connect, disconnect, hasExtension } = useWallet()
+  const { account, isConnecting, isConnected, connect, disconnect, hasWallet } = useWallet()
   const [showDialog, setShowDialog] = useState(false)
 
   const handleWalletSelect = async (type: WalletType) => {
-    await connect(type)
-    setShowDialog(false)
+    try {
+      await connect(type)
+      setShowDialog(false)
+    } catch (error: any) {
+      console.error('Failed to connect wallet:', error)
+      alert(error.message || 'Failed to connect wallet')
+    }
   }
 
   if (isConnected && account) {
@@ -55,7 +55,7 @@ export default function WalletConnector() {
             <span className="text-sm font-mono">
               {account.address.slice(0, 6)}...{account.address.slice(-4)}
             </span>
-            <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">{account.type}</span>
+            <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">Leo</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -65,10 +65,10 @@ export default function WalletConnector() {
             <p className="text-muted-foreground">Address</p>
             <p className="font-mono text-xs break-all">{account.address}</p>
           </div>
-          {account.balance && (
+          {account.network && (
             <div className="px-2 py-2 text-sm border-t">
-              <p className="text-muted-foreground">Balance</p>
-              <p className="font-semibold">{account.balance} ETH</p>
+              <p className="text-muted-foreground">Network</p>
+              <p className="font-semibold capitalize">{account.network}</p>
             </div>
           )}
           <DropdownMenuSeparator />
@@ -90,13 +90,13 @@ export default function WalletConnector() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Connect Wallet</DialogTitle>
-            <DialogDescription>Choose a wallet to connect to LineraProof</DialogDescription>
+            <DialogDescription>Connect your Leo Wallet to interact with Aleo testnet</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3">
             {WALLET_OPTIONS.map((wallet) => {
-              const isDisabled = wallet.requiresExtension && !hasExtension;
-              
+              const isDisabled = wallet.requiresExtension && !hasWallet;
+
               return (
                 <button
                   key={wallet.type}
@@ -118,13 +118,13 @@ export default function WalletConnector() {
                       <p className="text-xs text-muted-foreground mt-1">{wallet.description}</p>
                       {isDisabled && (
                         <p className="text-xs text-destructive mt-2 font-medium">
-                          ⚠️ Extension not installed. <a 
-                            href="https://github.com/respeer-ai/linera-wallet" 
-                            target="_blank" 
+                          ⚠️ Leo Wallet not detected. <a
+                            href={wallet.downloadUrl || "https://leo.app/"}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="underline hover:text-destructive/80"
                           >
-                            Get CheCko
+                            Install Leo Wallet
                           </a>
                         </p>
                       )}
@@ -134,12 +134,12 @@ export default function WalletConnector() {
               );
             })}
           </div>
-          
+
           <div className="mt-4 p-3 bg-muted/50 rounded-lg">
             <p className="text-xs text-muted-foreground">
-              💡 <strong>Tip:</strong> {hasExtension 
-                ? 'CheCko extension detected! Use it for persistent wallet across sessions.' 
-                : 'Install CheCko for a better experience, or use Demo mode for quick testing.'}
+              💡 <strong>Tip:</strong> {hasWallet
+                ? 'Leo Wallet detected! Connect to interact with your Aleo badges on testnet.'
+                : 'Install Leo Wallet browser extension to connect to Aleo testnet and manage your badges.'}
             </p>
           </div>
         </DialogContent>
