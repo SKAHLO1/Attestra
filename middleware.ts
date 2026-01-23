@@ -8,9 +8,9 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const response = NextResponse.next()
 
-  // Add headers for SharedArrayBuffer support
-  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
-  response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
+  // Add headers for SharedArrayBuffer support - Relaxed for Google Sign-in
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
+  // response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
 
   return response
 }

@@ -1,5 +1,5 @@
 {
-  "name": "provera",
+  "name": "veleo",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,14 +7,13 @@
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start",
-    "contract:build": "cd contract && cargo build --release --target wasm32-unknown-unknown",
-    "contract:deploy": "bash scripts/deploy-contract.sh",
-    "linera:setup": "bash scripts/setup-local-network.sh",
-    "linera:status": "linera net status",
-    "linera:down": "linera net down",
     "generate:codes": "node scripts/generate-claim-codes.js"
   },
   "dependencies": {
+    "@demox-labs/aleo-wallet-adapter-base": "^0.0.23",
+    "@demox-labs/aleo-wallet-adapter-leo": "^0.0.25",
+    "@demox-labs/aleo-wallet-adapter-react": "^0.0.22",
+    "@demox-labs/aleo-wallet-adapter-reactui": "^0.0.36",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
@@ -50,6 +49,7 @@
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
+    "firebase": "^10.7.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "next": "16.0.0",

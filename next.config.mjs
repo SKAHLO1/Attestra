@@ -14,18 +14,16 @@ const nextConfig = {
         headers: [
           {
             key: 'Cross-Origin-Opener-Policy',
-            value: 'same-origin',
-          },
-          {
-            key: 'Cross-Origin-Embedder-Policy',
-            value: 'require-corp',
+            value: 'same-origin-allow-popups',
           },
         ],
       },
     ];
   },
   // Exclude Linera SDK from server-side bundling
-  serverComponentsExternalPackages: ['@linera/client'],
+  experimental: {
+    serverComponentsExternalPackages: ['@linera/client'],
+  },
   // Turbopack configuration (Next.js 16+)
   turbopack: {
     // Empty config to acknowledge we're using Turbopack
