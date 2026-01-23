@@ -1,23 +1,25 @@
 import type React from "react"
 import type { Metadata } from "next"
-import Script from "next/script"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { WalletProvider } from "@/lib/wallet-context"
+import { AleoWalletProvider } from "@/lib/wallet-adapter-context"
+import { AuthProvider } from "@/lib/firebase/auth-context"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import "@demox-labs/aleo-wallet-adapter-reactui/styles.css"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Provera - Verifiable On-Chain Attendance",
-  description: "Issue and claim verifiable attendance badges on the Linera blockchain. Powered by microchains for instant, secure event verification.",
-  keywords: ["blockchain", "linera", "attendance", "badges", "web3", "NFT", "proof of attendance"],
-  authors: [{ name: "Provera" }],
+  title: "Veleo - Privacy-Preserving Attendance Verification",
+  description: "Issue and claim verifiable attendance badges on the Aleo blockchain with zero-knowledge proofs. Privacy-first event verification.",
+  keywords: ["blockchain", "aleo", "attendance", "badges", "web3", "zero-knowledge", "privacy", "proof of attendance"],
+  authors: [{ name: "Veleo" }],
   openGraph: {
-    title: "Provera - Verifiable On-Chain Attendance",
-    description: "Issue and claim verifiable attendance badges on the Linera blockchain.",
+    title: "Veleo - Privacy-Preserving Attendance Verification",
+    description: "Issue and claim verifiable attendance badges on the Aleo blockchain with zero-knowledge proofs.",
     type: "website",
   },
 }
@@ -29,28 +31,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Import map for Linera SDK - loads from /public */}
-        <script
-          type="importmap"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              imports: {
-                "@linera/client": "/linera-sdk/linera.js"
-              }
-            })
-          }}
-        />
-      </head>
       <body className={`font-sans antialiased`}>
-        {/* Initialize Linera SDK from import map */}
-        <Script
-          src="/linera-sdk/init.js"
-          strategy="lazyOnload"
-          type="module"
-        />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <WalletProvider>{children}</WalletProvider>
+          <AuthProvider>
+            <AleoWalletProvider>
+              {children}
+              <Toaster />
+            </AleoWalletProvider>
+          </AuthProvider>
         </ThemeProvider>
         <Analytics />
       </body>

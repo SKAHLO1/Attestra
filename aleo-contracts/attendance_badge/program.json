@@ -1,0 +1,6 @@
+{
+  "program": "attendance_badge.aleo",
+  "version": "0.1.0",
+  "description": "Decentralized proof-of-attendance badge system for events",
+  "license": "MIT"
+}
