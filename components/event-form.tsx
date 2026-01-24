@@ -57,6 +57,8 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
           const feeInMicrocredits = Math.floor(EVENT_CREATION_FEE * 1_000_000) // Convert LEO to microcredits
           
           const aleoTransaction = {
+            address: publicKey,
+            chainId: "testnetbeta",
             program: "credits.aleo",
             functionName: "transfer_public",
             inputs: [
@@ -64,9 +66,11 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
               `${feeInMicrocredits}u64`
             ],
             fee: 100000, // 0.1 credits for transaction fee
+            feePrivate: false,
+            transitions: []
           } as any
           
-          console.log('[EventForm] Requesting execution from wallet...')
+          console.log('[EventForm] Requesting execution from wallet...', aleoTransaction)
           const txId = await requestExecution(aleoTransaction)
           console.log('[EventForm] Transaction submitted:', txId)
           

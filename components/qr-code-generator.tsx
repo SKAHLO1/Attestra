@@ -54,6 +54,8 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
           const feeInMicrocredits = Math.floor(totalFee * 1_000_000) // Convert LEO to microcredits
           
           const aleoTransaction = {
+            address: publicKey,
+            chainId: "testnetbeta",
             program: "credits.aleo",
             functionName: "transfer_public",
             inputs: [
@@ -61,9 +63,11 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
               `${feeInMicrocredits}u64`
             ],
             fee: 50000, // 0.05 credits for transaction fee
+            feePrivate: false,
+            transitions: []
           } as any
           
-          console.log('[QRCodeGenerator] Requesting execution from wallet...')
+          console.log('[QRCodeGenerator] Requesting execution from wallet...', aleoTransaction)
           const txId = await requestExecution(aleoTransaction)
           console.log('[QRCodeGenerator] Transaction submitted:', txId)
           
