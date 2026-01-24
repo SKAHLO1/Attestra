@@ -48,40 +48,44 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
     setSuccessMessage("")
 
     try {
-      // Charge event creation fee (0.1 LEO)
-      console.log(`[EventForm] Processing payment of ${EVENT_CREATION_FEE} LEO for event creation...`)
+      // Call Aleo smart contract to create event (includes 0.1 LEO fee)
+      console.log(`[EventForm] Creating event on Aleo blockchain...`)
       
       if (requestExecution) {
         try {
-          // Create Aleo transaction to transfer fee
-          const feeInMicrocredits = Math.floor(EVENT_CREATION_FEE * 1_000_000) // Convert LEO to microcredits
+          // Generate event ID from event name and timestamp
+          const eventIdHash = `${Date.now()}${formData.name}`.split('').reduce((acc, char) => {
+            return ((acc << 5) - acc) + char.charCodeAt(0);
+          }, 0);
           
+          // Call attendance_badge.aleo create_event function
           const aleoTransaction = {
             address: publicKey,
             chainId: "testnetbeta",
-            program: "credits.aleo",
-            functionName: "transfer_public",
+            program: "attendance_badge.aleo",
+            functionName: "create_event",
             inputs: [
-              "aleo1nfvg0z6l36736agtdqjznxcrmw5sj505uxkqnqx3wlyl86hk4qxquds9yf", // Your wallet address
-              `${feeInMicrocredits}u64`
+              `${Math.abs(eventIdHash)}field`, // event_id as field
+              `${formData.maxAttendees}u64` // max_attendees
             ],
             fee: 100000, // 0.1 credits for transaction fee
             feePrivate: false,
             transitions: []
           } as any
           
-          console.log('[EventForm] Requesting execution from wallet...', aleoTransaction)
+          console.log('[EventForm] Calling smart contract create_event...', aleoTransaction)
           const txId = await requestExecution(aleoTransaction)
-          console.log('[EventForm] Transaction submitted:', txId)
+          console.log('[EventForm] Event created on-chain! Transaction ID:', txId)
           
-          // Wait a moment for transaction to be broadcast
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          // Wait for transaction to be confirmed
+          await new Promise(resolve => setTimeout(resolve, 3000))
         } catch (txError: any) {
-          console.error('[EventForm] Transaction failed:', txError)
-          throw new Error(`Payment failed: ${txError.message}`)
+          console.error('[EventForm] Smart contract call failed:', txError)
+          throw new Error(`Blockchain transaction failed: ${txError.message}`)
         }
       }
       
+      // Also store in Firebase for UI/metadata
       const eventId = await createEvent({
         name: formData.name,
         description: formData.description,

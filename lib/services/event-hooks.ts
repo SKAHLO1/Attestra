@@ -112,31 +112,89 @@ export function useEventOperations() {
     }
   };
 
-  const claimBadge = async (claimCode: string) => {
+  const claimBadge = async (claimCode: string, walletPublicKey?: string, requestExecution?: any) => {
     if (!user) throw new Error('User not authenticated');
     
     try {
       setLoading(true);
       setError(null);
       
-      // Find the badge with this claim code
-      const badgesRef = collection(db, 'badges');
-      const q = query(badgesRef, where('claimCode', '==', claimCode), where('claimed', '==', false));
+      // Verify claim code exists and is unused
+      const claimCodesRef = collection(db, 'claimCodes');
+      const q = query(claimCodesRef, where('code', '==', claimCode), where('used', '==', false));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
-        throw new Error('Invalid or already claimed code');
+        throw new Error('Invalid or already used claim code');
       }
       
-      const badgeDoc = querySnapshot.docs[0];
-      const badgeRef = doc(db, 'badges', badgeDoc.id);
+      const claimCodeDoc = querySnapshot.docs[0];
+      const claimCodeData = claimCodeDoc.data();
       
-      await updateDoc(badgeRef, {
-        claimed: true,
+      // Get event details for badge metadata
+      const eventDoc = await getDocs(query(collection(db, 'events'), where('__name__', '==', claimCodeData.eventId)));
+      const eventData = eventDoc.docs[0]?.data();
+      
+      let aleoTxId = null;
+      
+      // Mint badge on Aleo blockchain if wallet is connected
+      if (walletPublicKey && requestExecution) {
+        try {
+          console.log('[ClaimBadge] Minting badge on Aleo blockchain...');
+          
+          // Generate unique badge ID from claim code
+          const badgeIdHash = `${claimCode}${Date.now()}`.split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+          }, 0);
+          
+          const eventIdHash = claimCodeData.eventId.split('').reduce((a: number, b: string) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+          }, 0);
+          
+          // Call claim_badge transition on Aleo
+          const aleoTransaction = {
+            address: walletPublicKey,
+            chainId: "testnet",
+            program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "velero_attender.aleo",
+            functionName: "claim_badge",
+            inputs: [
+              `${Math.abs(eventIdHash)}field`, // event_id
+              `${Math.abs(badgeIdHash)}field`, // badge_id
+              `${Date.now()}u64` // timestamp
+            ],
+            fee: 100000, // 0.1 credits
+            wait: true,
+          };
+          
+          console.log('[ClaimBadge] Aleo transaction:', aleoTransaction);
+          const txResult = await requestExecution(aleoTransaction);
+          aleoTxId = txResult?.transactionId || txResult;
+          console.log('[ClaimBadge] Badge minted on Aleo! TX:', aleoTxId);
+        } catch (aleoError: any) {
+          console.error('[ClaimBadge] Aleo minting failed:', aleoError);
+          // Continue with Firebase record even if blockchain mint fails
+          // User can retry minting later
+        }
+      }
+      
+      // Create badge record in Firebase
+      const badgesRef = collection(db, 'badges');
+      const badgeDoc = await addDoc(badgesRef, {
+        userId: user.uid,
+        eventId: claimCodeData.eventId,
+        eventName: eventData?.name || 'Unknown Event',
+        claimCode: claimCode,
         claimedAt: serverTimestamp(),
-        attendeeId: user.uid,
-        attendeeName: user.displayName || user.email,
-        attendeeEmail: user.email,
+        aleoTxId: aleoTxId,
+      });
+      
+      // Mark claim code as used
+      await updateDoc(doc(db, 'claimCodes', claimCodeDoc.id), {
+        used: true,
+        usedBy: user.uid,
+        usedAt: serverTimestamp(),
       });
       
       return badgeDoc.id;

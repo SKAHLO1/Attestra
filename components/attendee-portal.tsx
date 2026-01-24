@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useEventOperations, useUserBadges } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
+import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
 import { useAuth } from "@/lib/firebase/auth-context"
 import { LogOut, User } from "lucide-react"
 
@@ -38,6 +39,7 @@ interface AttendeePortalProps {
 export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const applicationId = getApplicationId()
   const { user, userProfile, logout } = useAuth()
+  const { publicKey, requestTransaction } = useWallet()
   const { claimBadge, validateClaimCode, loading, error } = useEventOperations()
   const { badges: userBadges, refetch } = useUserBadges()
   
@@ -56,7 +58,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   // Convert Firebase badges to ClaimedBadge format
   useEffect(() => {
     if (userBadges) {
-      const converted: ClaimedBadge[] = userBadges.map((badge) => ({
+      const converted: ClaimedBadge[] = userBadges.map((badge: any) => ({
         id: badge.tokenId,
         eventName: badge.eventName,
         claimedAt: badge.claimedAt || new Date(),
@@ -91,11 +93,11 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
     setClaimStatus(null)
 
     try {
-      const badgeId = await claimBadge(claimCode)
+      const badgeId = await claimBadge(claimCode, publicKey || undefined, requestTransaction)
       
       setClaimStatus({ 
         type: 'success', 
-        message: `Badge claimed successfully!` 
+        message: `Badge claimed successfully! ${publicKey ? 'Minted on Aleo blockchain.' : 'Connect wallet to mint on-chain.'}` 
       })
       setClaimCode("")
       // Refresh badge list

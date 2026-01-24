@@ -48,36 +48,12 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
       const totalFee = BADGE_CREATION_FEE * count
       console.log(`[QRCodeGenerator] Processing payment of ${totalFee} LEO for ${count} badges...`)
       
-      // Process fee payment via Aleo wallet
-      if (requestExecution) {
-        try {
-          const feeInMicrocredits = Math.floor(totalFee * 1_000_000) // Convert LEO to microcredits
-          
-          const aleoTransaction = {
-            address: publicKey,
-            chainId: "testnetbeta",
-            program: "credits.aleo",
-            functionName: "transfer_public",
-            inputs: [
-              "aleo1nfvg0z6l36736agtdqjznxcrmw5sj505uxkqnqx3wlyl86hk4qxquds9yf", // Your wallet address
-              `${feeInMicrocredits}u64`
-            ],
-            fee: 50000, // 0.05 credits for transaction fee
-            feePrivate: false,
-            transitions: []
-          } as any
-          
-          console.log('[QRCodeGenerator] Requesting execution from wallet...', aleoTransaction)
-          const txId = await requestExecution(aleoTransaction)
-          console.log('[QRCodeGenerator] Transaction submitted:', txId)
-          
-          // Wait for transaction to be broadcast
-          await new Promise(resolve => setTimeout(resolve, 2000))
-        } catch (txError: any) {
-          console.error('[QRCodeGenerator] Transaction failed:', txError)
-          throw new Error(`Payment failed: ${txError.message}`)
-        }
-      }
+      // Note: Badges are NOT pre-minted here to save gas fees
+      // Instead, badges are minted on-chain when attendees CLAIM them
+      // This is more efficient and only charges for badges actually used
+      console.log(`[QRCodeGenerator] Generated ${count} claim codes`)
+      console.log(`[QRCodeGenerator] Badges will be minted on-chain when attendees claim them`)
+      console.log(`[QRCodeGenerator] Estimated total cost if all claimed: ${totalFee} LEO`)
 
       // Generate claim codes and QR codes with LEO prefix
       const newCodes = Array.from({ length: count }, (_, i) => {
@@ -104,7 +80,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
       await addClaimCodes(eventId, claimCodesOnly)
       
       setGeneratedCodes([...generatedCodes, ...newCodes])
-      setSuccessMessage(`Successfully generated ${count} badges! Fee: ${totalFee} LEO. All badges start with "LEO" prefix.`)
+      setSuccessMessage(`Successfully generated ${count} claim codes! Badges will be minted on Aleo blockchain when attendees claim them (${BADGE_CREATION_FEE} LEO per claim).`)
     } catch (err: any) {
       setError(err.message || 'Failed to generate and register claim codes')
       console.error('[QRCodeGenerator] Error:', err)
@@ -164,9 +140,9 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
         )}
 
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>💡 Generated codes are automatically registered on the blockchain for attendees to claim</p>
-          <p>💰 Fee: {BADGE_CREATION_FEE} LEO per badge (paid from connected wallet)</p>
-          <p>🏷️ All badges start with "LEO" prefix for easy identification</p>
+          <p>💡 Claim codes are stored in Firebase - badges mint on Aleo when attendees claim</p>
+          <p>💰 Fee: {BADGE_CREATION_FEE} LEO per badge (paid by attendee when claiming)</p>
+          <p>🏷️ All codes start with "LEO" prefix for easy identification</p>
         </div>
 
         {generatedCodes.length > 0 && (

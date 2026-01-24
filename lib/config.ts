@@ -6,7 +6,7 @@
 export const config = {
   aleo: {
     // Aleo Testnet Configuration
-    programId: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'attendance_badge.aleo',
+    programId: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'velero_attender.aleo',
     network: process.env.NEXT_PUBLIC_ALEO_NETWORK || 'testnet',
     apiEndpoint: process.env.NEXT_PUBLIC_ALEO_API_ENDPOINT || 'https://api.explorer.aleo.org/v1',
   },

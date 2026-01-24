@@ -5,7 +5,7 @@ export class AleoClient {
   private programId: string;
   private network: string;
 
-  constructor(programId: string = 'attendance_badge.aleo', network: string = 'testnet') {
+  constructor(programId: string = 'velero_attender.aleo', network: string = 'testnet') {
     this.programId = programId;
     this.network = network;
   }
