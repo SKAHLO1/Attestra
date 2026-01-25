@@ -1,12 +1,14 @@
 "use client"
 
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import WalletButton from "./wallet-button"
 import { Button } from "@/components/ui/button"
+import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
 
 export default function Header() {
   const { theme, setTheme } = useTheme()
+  const { connected, disconnect } = useWallet()
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,7 +25,7 @@ export default function Header() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <span className="text-xs text-muted-foreground">Aleo Testnet</span>
@@ -39,6 +41,18 @@ export default function Header() {
             <span className="sr-only">Toggle theme</span>
           </Button>
           <WalletButton />
+          {connected && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={disconnect}
+              className="rounded-full"
+              title="Disconnect Wallet"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="sr-only">Disconnect Wallet</span>
+            </Button>
+          )}
         </div>
       </div>
     </header>

@@ -163,3 +163,71 @@
     overflow-x: hidden;
   }
 }
+
+/* Aleo Wallet Adapter Dropdown Styles */
+.wallet-adapter-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.wallet-adapter-dropdown-list {
+  position: absolute;
+  z-index: 9999;
+  display: grid;
+  grid-template-rows: 1fr;
+  grid-row-gap: 10px;
+  padding: 10px;
+  top: 100%;
+  right: 0;
+  margin: 0;
+  list-style: none;
+  background: hsl(var(--popover));
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 200ms ease, transform 200ms ease, visibility 200ms;
+  border: 1px solid hsl(var(--border));
+  min-width: 200px;
+}
+
+.wallet-adapter-dropdown-list-active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(10px);
+}
+
+.wallet-adapter-dropdown-list-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+  padding: 10px 20px;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  background-color: transparent;
+  color: hsl(var(--popover-foreground));
+  transition: background-color 150ms ease;
+}
+
+.wallet-adapter-dropdown-list-item:not([disabled]):hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.wallet-adapter-dropdown-list-item:not([disabled]):active {
+  background-color: hsl(var(--accent));
+  opacity: 0.8;
+}
+
+/* Ensure dropdown appears above other elements */
+.wallet-adapter-button-trigger {
+  cursor: pointer;
+}
