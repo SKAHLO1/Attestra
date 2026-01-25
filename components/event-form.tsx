@@ -20,7 +20,7 @@ const EVENT_CREATION_FEE = 0.1 // 0.1 LEO
 
 export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
   const { createEvent, loading: creating, error: createError } = useEventOperations()
-  const { publicKey, requestExecution } = useWallet()
+  const { publicKey, requestTransaction } = useWallet()
   
   const [formData, setFormData] = useState({
     name: "",
@@ -48,40 +48,42 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
     setSuccessMessage("")
 
     try {
-      // Call Aleo smart contract to create event (includes 0.1 LEO fee)
+      // Call Aleo smart contract to create event
       console.log(`[EventForm] Creating event on Aleo blockchain...`)
       
-      if (requestExecution) {
+      if (requestTransaction && publicKey) {
         try {
           // Generate event ID from event name and timestamp
           const eventIdHash = `${Date.now()}${formData.name}`.split('').reduce((acc, char) => {
             return ((acc << 5) - acc) + char.charCodeAt(0);
           }, 0);
           
-          // Call attendance_badge.aleo create_event function
+          // Call velero_attender.aleo create_event function
+          const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "velero_attender.aleo";
           const aleoTransaction = {
             address: publicKey,
             chainId: "testnetbeta",
-            program: "attendance_badge.aleo",
-            functionName: "create_event",
-            inputs: [
-              `${Math.abs(eventIdHash)}field`, // event_id as field
-              `${formData.maxAttendees}u64` // max_attendees
-            ],
-            fee: 100000, // 0.1 credits for transaction fee
+            transitions: [{
+              program: programId,
+              functionName: "create_event",
+              inputs: [
+                `${Math.abs(eventIdHash)}field`,
+                `${formData.maxAttendees || 100}u64`
+              ]
+            }],
+            fee: 1000000, // 1.0 credits
             feePrivate: false,
-            transitions: []
-          } as any
+          };
           
-          console.log('[EventForm] Calling smart contract create_event...', aleoTransaction)
-          const txId = await requestExecution(aleoTransaction)
-          console.log('[EventForm] Event created on-chain! Transaction ID:', txId)
+          console.log('[EventForm] Submitting transaction:', JSON.stringify(aleoTransaction, null, 2));
+          const txId = await requestTransaction(aleoTransaction);
+          console.log('[EventForm] Event created on-chain! Transaction ID:', txId);
           
-          // Wait for transaction to be confirmed
-          await new Promise(resolve => setTimeout(resolve, 3000))
+          // Wait for transaction confirmation
+          await new Promise(resolve => setTimeout(resolve, 3000));
         } catch (txError: any) {
-          console.error('[EventForm] Smart contract call failed:', txError)
-          throw new Error(`Blockchain transaction failed: ${txError.message}`)
+          console.error('[EventForm] Blockchain transaction failed:', txError);
+          throw new Error(`Blockchain transaction failed: ${txError.message}`);
         }
       }
       

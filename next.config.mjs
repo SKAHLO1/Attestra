@@ -31,10 +31,11 @@ const nextConfig = {
   },
   webpack: (config, { isServer }) => {
     // This only runs in production builds with webpack
-    // Enable WebAssembly
+    // Enable WebAssembly and top-level await for Provable SDK
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
+      topLevelAwait: true,
       layers: true,
     };
 

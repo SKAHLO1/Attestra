@@ -154,18 +154,21 @@ export function useEventOperations() {
           }, 0);
           
           // Call claim_badge transition on Aleo
+          const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "velero_attender.aleo";
           const aleoTransaction = {
             address: walletPublicKey,
-            chainId: "testnet",
-            program: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "velero_attender.aleo",
-            functionName: "claim_badge",
-            inputs: [
-              `${Math.abs(eventIdHash)}field`, // event_id
-              `${Math.abs(badgeIdHash)}field`, // badge_id
-              `${Date.now()}u64` // timestamp
-            ],
-            fee: 100000, // 0.1 credits
-            wait: true,
+            chainId: "testnetbeta",
+            transitions: [{
+              program: programId,
+              functionName: "claim_badge",
+              inputs: [
+                `${Math.abs(eventIdHash)}field`, // event_id
+                `${Math.abs(badgeIdHash)}field`, // badge_id
+                `${Date.now()}u64` // timestamp
+              ]
+            }],
+            fee: 1000000, // 1.0 credits (increased for testnet)
+            feePrivate: false,
           };
           
           console.log('[ClaimBadge] Aleo transaction:', aleoTransaction);
