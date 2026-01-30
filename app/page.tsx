@@ -38,8 +38,15 @@ export default function Home() {
   }
 
   const handleLogout = async () => {
-    await logout()
-    setUserRole(null)
+    try {
+      console.log('[Page] Logging out...')
+      setUserRole(null)
+      setShowLoginDialog(false)
+      await logout()
+      console.log('[Page] Logout complete')
+    } catch (error) {
+      console.error('[Page] Logout error:', error)
+    }
   }
 
   return (

@@ -168,7 +168,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      console.log('[Auth] Logging out user...')
+      // Clear user profile state immediately
+      setUserProfile(null)
+      setUser(null)
+      // Sign out from Firebase
       await signOut(auth)
+      console.log('[Auth] Logout successful')
     } catch (error: any) {
       console.error("Error signing out:", error)
       throw new Error(error.message || "Failed to sign out")

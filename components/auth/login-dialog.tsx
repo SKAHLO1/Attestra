@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth, UserRole } from "@/lib/firebase/auth-context"
 import {
   Dialog,
@@ -38,6 +38,16 @@ export function LoginDialog({ open, onOpenChange, role }: LoginDialogProps) {
     confirmPassword: "",
     displayName: "",
   })
+
+  // Reset loading state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setIsLoading(false)
+      // Reset form data
+      setLoginData({ email: "", password: "" })
+      setSignupData({ email: "", password: "", confirmPassword: "", displayName: "" })
+    }
+  }, [open])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
