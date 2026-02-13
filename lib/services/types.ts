@@ -13,6 +13,8 @@ export interface EventData {
   imageUrl?: string;
   maxAttendees?: number;
   isActive: boolean;
+  prerequisiteEventId?: string;
+  minReputationLevel?: number;
 }
 
 export interface BadgeData {
