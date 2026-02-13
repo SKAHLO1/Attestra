@@ -6,7 +6,7 @@ import { AleoWalletProvider } from "@/lib/wallet-adapter-context"
 import { AuthProvider } from "@/lib/firebase/auth-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import "@demox-labs/aleo-wallet-adapter-reactui/styles.css"
+
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <AleoWalletProvider>
               {children}

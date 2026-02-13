@@ -40,17 +40,17 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedBadge, setSelectedBadge] = useState<BadgeData | null>(null)
-  
+
   const applicationId = getApplicationId()
   const { badges: userBadges, loading, error } = useAllEventBadges(applicationId)
 
   // Convert Firebase badges to BadgeData format
   const badges: BadgeData[] = useMemo(() => {
     if (!userBadges) return []
-    
+
     return userBadges.map((badge) => {
       const categoryLowercase = badge.category.toLowerCase() as "conference" | "hackathon" | "meetup" | "workshop"
-      
+
       return {
         id: badge.tokenId,
         eventName: badge.eventName,
@@ -128,8 +128,8 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
         <CardContent className="pt-8 text-center">
           <div className="flex flex-col items-center gap-3">
             <svg className="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
             <p className="text-muted-foreground">Loading badges from blockchain...</p>
           </div>
@@ -152,19 +152,19 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="text-center md:text-left">
-        <h2 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
+        <h2 className="text-4xl font-bold text-gray-900">
           Your Badge Portfolio
         </h2>
-        <p className="text-muted-foreground mt-2">All your verified attendance badges on Aleo blockchain</p>
+        <p className="text-gray-500 mt-2">All your verified attendance badges on Aleo blockchain</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/10 to-transparent hover:shadow-lg hover:shadow-primary/10 transition-all duration-300">
+        <Card className="border-gray-200 bg-white hover:shadow-lg transition-all duration-300">
           <CardHeader className="pb-3">
-            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">Total Badges</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium text-gray-500">Total Badges</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{categoryStats.all}</div>
+            <div className="text-2xl md:text-3xl font-bold text-gray-900">{categoryStats.all}</div>
           </CardContent>
         </Card>
 
@@ -205,10 +205,10 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
         </Card>
       </div>
 
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-lg">
+      <Card className="border-gray-200 bg-white shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <CardTitle className="flex items-center gap-2 text-gray-900">
+            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             Search & Filter
@@ -252,11 +252,11 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
                 {filteredBadges.map((badge, index) => (
                   <Dialog key={badge.id}>
                     <DialogTrigger asChild>
-                      <Card 
-                        className="group hover:border-primary/50 transition-all duration-300 cursor-pointer overflow-hidden hover:shadow-xl hover:shadow-primary/20 hover:scale-105 animate-in fade-in slide-in-from-bottom-5 duration-500"
+                      <Card
+                        className="group border-gray-200 hover:border-gray-400 transition-all duration-300 cursor-pointer overflow-hidden hover:shadow-xl hover:shadow-gray-200 hover:scale-105 animate-in fade-in slide-in-from-bottom-5 duration-500"
                         style={{ animationDelay: `${index * 100}ms` }}
                       >
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="absolute inset-0 bg-gray-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         <CardContent className="pt-6 relative">
                           <div className="text-center">
                             <div className="text-6xl mb-4 transform group-hover:scale-110 transition-transform duration-300">{badge.image}</div>
@@ -336,7 +336,7 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
                             </svg>
                             Explorer
                           </Button>
-                          <Button className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity">
+                          <Button className="flex-1 bg-gray-700 hover:bg-gray-800 text-white transition-opacity">
                             <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                             </svg>
@@ -353,10 +353,10 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
         </Tabs>
       </div>
 
-      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent shadow-xl">
+      <Card className="border border-gray-200 bg-white shadow-xl">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <CardTitle className="flex items-center gap-2 text-gray-900">
+            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Portfolio Actions
@@ -377,7 +377,7 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
               </svg>
               Export Data
             </Button>
-            <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity shadow-lg shadow-primary/20">
+            <Button className="bg-gray-700 hover:bg-gray-800 text-white transition-opacity shadow-lg shadow-gray-200">
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>

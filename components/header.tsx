@@ -1,58 +1,54 @@
 "use client"
 
-import { Moon, Sun, LogOut } from "lucide-react"
-import { useTheme } from "next-themes"
-import WalletButton from "./wallet-button"
-import { Button } from "@/components/ui/button"
-import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
+import Image from "next/image"
+import { useState, useEffect } from "react"
+import HamburgerMenu from "./hamburger-menu"
+import { Sparkles } from "lucide-react"
 
 export default function Header() {
-  const { theme, setTheme } = useTheme()
-  const { connected, disconnect } = useWallet()
+  const [showWelcome, setShowWelcome] = useState(false)
+
+  useEffect(() => {
+    // Show welcome message after a short delay
+    const timer = setTimeout(() => setShowWelcome(true), 1500)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent">
-            <span className="text-2xl">🪪</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Veleo
-            </h1>
-            <p className="text-xs text-muted-foreground hidden sm:block">Verifiable On-Chain Attendance</p>
+    <header className="sticky top-0 z-50 bg-white shadow-sm overflow-hidden">
+      {/* Animated Announcement Bar */}
+      <div className={`bg-gray-900 transition-all duration-700 ease-in-out ${showWelcome ? 'h-8 opacity-100' : 'h-0 opacity-0'}`}>
+        <div className="container mx-auto h-full flex items-center justify-center">
+          <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-1000">
+            <Sparkles className="w-3 h-3 text-blue-400" />
+            <p className="text-[10px] md:text-xs font-bold text-white tracking-wider uppercase">
+              Welcome to <span className="text-blue-400">Veleo</span>! Scroll down to see how to get started
+            </p>
+            <Sparkles className="w-3 h-3 text-blue-400" />
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-muted-foreground">Aleo Testnet</span>
+      <div className="border-b border-gray-200">
+        <div className="container mx-auto px-4 py-0.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/veleo-logo.jpg"
+              alt="Veleo"
+              width={85}
+              height={20}
+              className="hover:scale-105 transition-transform duration-300 cursor-pointer object-contain"
+              priority
+            />
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="rounded-full"
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-          <WalletButton />
-          {connected && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={disconnect}
-              className="rounded-full"
-              title="Disconnect Wallet"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Disconnect Wallet</span>
-            </Button>
-          )}
+
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-1.5 px-2 py-0.5 text-[10px] rounded-full bg-green-50 border border-green-200">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="font-medium text-green-700">Aleo Testnet</span>
+            </div>
+            <HamburgerMenu />
+          </div>
         </div>
       </div>
     </header>
