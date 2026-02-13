@@ -15,7 +15,7 @@ import {
 import { generateClaimCode, generateQRCodeURL, encodeQRData, type QRCodeData } from "@/lib/qr-utils"
 import { useEventOperations } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
-import { useWallet } from "@demox-labs/aleo-wallet-adapter-react"
+import { useWallet } from "@provablehq/aleo-wallet-adaptor-react"
 
 interface QRCodeGeneratorProps {
   eventId: string
@@ -28,14 +28,14 @@ const BADGE_CREATION_FEE = 0.001 // 0.001 LEO per badge
 export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGeneratorProps) {
   const applicationId = getApplicationId()
   const { addClaimCodes, loading: operationLoading } = useEventOperations()
-  const { publicKey, requestExecution } = useWallet()
+  const { address } = useWallet()
   const [generatedCodes, setGeneratedCodes] = useState<Array<{ code: string; qrUrl: string }>>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const handleGenerateQRCodes = async (count = 10) => {
-    if (!publicKey) {
+    if (!address) {
       setError("Please connect your wallet to generate badges")
       return
     }
@@ -47,7 +47,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
     try {
       const totalFee = BADGE_CREATION_FEE * count
       console.log(`[QRCodeGenerator] Processing payment of ${totalFee} LEO for ${count} badges...`)
-      
+
       // Note: Badges are NOT pre-minted here to save gas fees
       // Instead, badges are minted on-chain when attendees CLAIM them
       // This is more efficient and only charges for badges actually used
@@ -78,7 +78,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
       console.log('[QRCodeGenerator] Registering claim codes in Firebase...')
       const claimCodesOnly = newCodes.map(c => c.code)
       await addClaimCodes(eventId, claimCodesOnly)
-      
+
       setGeneratedCodes([...generatedCodes, ...newCodes])
       setSuccessMessage(`Successfully generated ${count} claim codes! Badges will be minted on Aleo blockchain when attendees claim them (${BADGE_CREATION_FEE} LEO per claim).`)
     } catch (err: any) {
@@ -103,7 +103,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
   }
 
   return (
-    <Card className="border-2 border-primary/20">
+    <Card className="border border-gray-200 bg-white">
       <CardHeader>
         <CardTitle>QR Code Management</CardTitle>
         <CardDescription>Generate and manage QR codes for attendee claim codes</CardDescription>
@@ -113,7 +113,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
           <Button
             onClick={() => handleGenerateQRCodes(10)}
             disabled={isGenerating || operationLoading}
-            className="bg-primary hover:bg-primary/90"
+            className="bg-gray-700 hover:bg-gray-800 text-white"
           >
             {isGenerating || operationLoading ? "Generating & Registering..." : "Generate 10 QR Codes"}
           </Button>
@@ -156,7 +156,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
               {generatedCodes.map((item, index) => (
                 <Dialog key={index}>
                   <DialogTrigger asChild>
-                    <div className="p-3 border rounded-lg hover:border-primary/50 cursor-pointer transition-colors">
+                    <div className="p-3 border border-gray-200 rounded-lg hover:border-gray-400 cursor-pointer transition-colors bg-white">
                       <div className="aspect-square bg-muted rounded mb-2 flex items-center justify-center">
                         <img
                           src={item.qrUrl || "/placeholder.svg"}
@@ -205,7 +205,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
                         >
                           Download
                         </Button>
-                        <Button className="flex-1 bg-primary hover:bg-primary/90">Print</Button>
+                        <Button className="flex-1 bg-gray-700 hover:bg-gray-800 text-white">Print</Button>
                       </div>
                     </div>
                   </DialogContent>

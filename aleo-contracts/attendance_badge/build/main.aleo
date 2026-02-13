@@ -1,3 +1,4 @@
+import credits.aleo;
 program velero_attender.aleo;
 
 record Badge:
@@ -92,6 +93,19 @@ function deactivate_event:
     assert.eq r0.owner self.caller;
     cast r0.owner r0.event_id r0.max_attendees false into r1 as Event.record;
     output r1 as Event.record;
+
+function transfer_private:
+    input r0 as credits.aleo/credits.record;
+    input r1 as address.private;
+    input r2 as u64.private;
+    call credits.aleo/transfer_private r0 r1 r2 into r3 r4;
+    async transfer_private into r5;
+    output r3 as credits.aleo/credits.record;
+    output r4 as credits.aleo/credits.record;
+    output r5 as velero_attender.aleo/transfer_private.future;
+
+finalize transfer_private:
+    assert.eq true true;
 
 constructor:
     assert.eq edition 0u16;

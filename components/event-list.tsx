@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -25,6 +25,7 @@ import {
 import QRCodeGenerator from "./qr-code-generator"
 import { useEventOperations } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
+import { ShieldAlert, Users, Calendar, Link, QrCode, Trash2, CheckCircle2, XCircle, MoreVertical } from "lucide-react"
 
 interface Event {
   id: string
@@ -34,6 +35,7 @@ interface Event {
   attendees: number
   status: string
   createdAt: Date
+  gated?: boolean
 }
 
 interface EventListProps {
@@ -49,259 +51,109 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
   const [showAttendees, setShowAttendees] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
-  const handleDeactivateEvent = async (event: Event) => {
+  const handleToggleStatus = async (event: Event) => {
     setActionLoading(true)
     try {
-      console.log('[EventList] Deactivating event...')
-      await setEventActive(event.id, false)
-      console.log('[EventList] Event deactivated successfully')
+      await setEventActive(event.id, event.status !== 'active')
       onEventUpdated?.()
     } catch (error: any) {
-      console.error('[EventList] Error deactivating event:', error)
-      alert('Error deactivating event: ' + error.message)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleActivateEvent = async (event: Event) => {
-    setActionLoading(true)
-    try {
-      console.log('[EventList] Activating event...')
-      await setEventActive(event.id, true)
-      console.log('[EventList] Event activated successfully')
-      onEventUpdated?.()
-    } catch (error: any) {
-      console.error('[EventList] Error activating event:', error)
-      alert('Error activating event: ' + error.message)
+      console.error('[EventList] Error toggling status:', error)
     } finally {
       setActionLoading(false)
     }
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Current Event</h3>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {events.map((event) => (
+        <Card key={event.id} className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-white hover:shadow-2xl transition-all duration-500 group relative">
+          <div className={`absolute top-0 left-0 w-2 h-full ${event.status === 'active' ? 'bg-green-500' : 'bg-gray-300'}`} />
 
-      {events.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="pt-8 text-center text-muted-foreground">
-            No event configured yet. Click "Create Event" above to set up your event.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {events.map((event) => (
-            <Card key={event.id} className="hover:border-primary/50 transition-colors">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{event.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground font-mono mt-1">{event.eventId}</p>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                    {event.status}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Badges Minted</p>
-                    <p className="text-2xl font-bold text-primary">{event.badgesMinted}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Attendees</p>
-                    <p className="text-2xl font-bold text-accent">{event.attendees}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Created</p>
-                    <p className="text-sm font-medium">{event.createdAt.toLocaleDateString()}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Dialog open={showAttendees && selectedEvent?.id === event.id} onOpenChange={(open) => {
-                    setShowAttendees(open)
-                    if (open) setSelectedEvent(event)
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 bg-transparent"
-                        onClick={() => {
-                          setSelectedEvent(event)
-                          setShowAttendees(true)
-                        }}
-                      >
-                        Manage Attendees
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Manage Attendees - {event.name}</DialogTitle>
-                        <DialogDescription>View and manage event attendees</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="p-4 bg-muted rounded-lg">
-                          <p className="text-sm font-medium mb-2">Total Attendees: {event.attendees}</p>
-                          <p className="text-sm text-muted-foreground">Badges Claimed: {event.badgesMinted}</p>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          <p>💡 Attendee management features coming soon:</p>
-                          <ul className="list-disc list-inside mt-2 space-y-1 ml-2">
-                            <li>View list of all badge holders</li>
-                            <li>Export attendee data</li>
-                            <li>Send notifications to attendees</li>
-                            <li>Revoke/transfer badges</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  
-                  <Dialog open={showDetails && selectedEvent?.id === event.id} onOpenChange={(open) => {
-                    setShowDetails(open)
-                    if (open) setSelectedEvent(event)
-                  }}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 bg-transparent"
-                        onClick={() => {
-                          setSelectedEvent(event)
-                          setShowDetails(true)
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Event Details - {event.name}</DialogTitle>
-                        <DialogDescription>Full event information</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">Event Name</p>
-                            <p className="text-base font-semibold">{event.name}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">Event ID</p>
-                            <p className="text-xs font-mono bg-muted p-2 rounded break-all">{event.eventId}</p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Status</p>
-                              <p className="text-base">
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                                  {event.status}
-                                </span>
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Created</p>
-                              <p className="text-base">{event.createdAt.toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Badges Minted</p>
-                              <p className="text-2xl font-bold text-primary">{event.badgesMinted}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Total Attendees</p>
-                              <p className="text-2xl font-bold text-accent">{event.attendees}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="pt-4 border-t">
-                          <p className="text-sm text-muted-foreground mb-2">🔗 Quick Actions</p>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="flex-1" onClick={() => {
-                              navigator.clipboard.writeText(event.eventId)
-                            }}>
-                              Copy Event ID
-                            </Button>
-                            <Button size="sm" variant="outline" className="flex-1" onClick={() => {
-                              setShowDetails(false)
-                              setShowAttendees(true)
-                            }}>
-                              Manage Attendees
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="flex-1 bg-primary hover:bg-primary/90">
-                        Generate QR Codes
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Generate QR Codes</DialogTitle>
-                        <DialogDescription>Create QR codes for attendee claim codes</DialogDescription>
-                      </DialogHeader>
-                      <QRCodeGenerator eventId={event.id} eventName={event.name} issuer="Event Organizer" />
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                
-                <div className="mt-3 pt-3 border-t flex gap-2">
-                  {event.status === 'active' ? (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="destructive" 
-                          size="sm" 
-                          className="flex-1"
-                          disabled={actionLoading || operationLoading}
-                        >
-                          {actionLoading ? 'Processing...' : 'Deactivate Event'}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Deactivate Event?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will prevent new attendees from claiming badges for this event.
-                            You can reactivate it later. No data will be lost.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeactivateEvent(event)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Deactivate
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  ) : (
-                    <Button 
-                      variant="default" 
-                      size="sm" 
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleActivateEvent(event)}
-                      disabled={actionLoading || operationLoading}
-                    >
-                      {actionLoading ? 'Processing...' : 'Activate Event'}
-                    </Button>
+          <CardContent className="p-8">
+            <div className="flex items-start justify-between mb-8">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xl font-black text-gray-900 leading-tight">{event.name}</h4>
+                  {event.gated && (
+                    <div className="px-2 py-0.5 bg-blue-50 border border-blue-100 rounded-md flex items-center gap-1">
+                      <ShieldAlert className="w-3 h-3 text-blue-500" />
+                      <span className="text-[9px] font-black text-blue-600 uppercase">ZK-Gated</span>
+                    </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                <p className="text-[10px] font-mono text-gray-400 truncate max-w-[200px]">{event.eventId}</p>
+              </div>
+
+              <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${event.status === 'active'
+                ? 'bg-green-50 text-green-700 border-green-100'
+                : 'bg-gray-50 text-gray-500 border-gray-100'
+                }`}>
+                {event.status}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="p-4 bg-gray-50 rounded-2xl">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Badges</p>
+                <p className="text-xl font-black text-gray-900">{event.badgesMinted}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-2xl">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Attendees</p>
+                <p className="text-xl font-black text-gray-900">{event.attendees}</p>
+              </div>
+              <div className="p-4 bg-gray-50 rounded-2xl">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Created</p>
+                <p className="text-[13px] font-bold text-gray-900 mt-1">{event.createdAt.toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Dialog open={showAttendees && selectedEvent?.id === event.id} onOpenChange={(open) => {
+                setShowAttendees(open)
+                if (open) setSelectedEvent(event)
+              }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 rounded-xl px-4 font-bold text-xs border-gray-100 bg-gray-50 hover:bg-gray-100">
+                    <Users className="w-4 h-4 mr-2" /> Attendees
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-xl rounded-[2.5rem] p-10">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-black uppercase text-gray-900">Attendee Insights</DialogTitle>
+                    <DialogDescription className="font-medium text-gray-500">Live participation data for {event.name}</DialogDescription>
+                  </DialogHeader>
+                  <div className="py-8 text-center text-gray-400 font-bold uppercase text-sm border-y border-gray-100 my-4">
+                    Detailed user list coming soon
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="h-10 rounded-xl px-4 font-bold text-xs bg-gray-900 hover:bg-black text-white">
+                    <QrCode className="w-4 h-4 mr-2" /> QR Console
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-2xl rounded-[2.5rem] p-10 overflow-y-auto max-h-[90vh]">
+                  <QRCodeGenerator eventId={event.id} eventName={event.name} issuer="Veleo Organizer" />
+                </DialogContent>
+              </Dialog>
+
+              <div className="flex-1" />
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-xl hover:bg-gray-100"
+                onClick={() => handleToggleStatus(event)}
+                disabled={actionLoading}
+              >
+                {event.status === 'active' ? <XCircle className="w-5 h-5 text-red-400" /> : <CheckCircle2 className="w-5 h-5 text-green-400" />}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }

@@ -77,7 +77,7 @@ export default function QRCodeVerifier({ onVerify }: QRCodeVerifierProps) {
   }
 
   return (
-    <Card className="border-2 border-accent/20">
+    <Card className="border border-gray-200 bg-white">
       <CardHeader>
         <CardTitle>QR Code Verification</CardTitle>
         <CardDescription>Verify QR codes and claim codes for authenticity</CardDescription>
@@ -96,7 +96,7 @@ export default function QRCodeVerifier({ onVerify }: QRCodeVerifierProps) {
           />
         </div>
 
-        <Button onClick={() => handleVerifyQRCode("")} className="w-full bg-accent hover:bg-accent/90">
+        <Button onClick={() => handleVerifyQRCode("")} className="w-full bg-gray-700 hover:bg-gray-800 text-white">
           Verify QR Code
         </Button>
 

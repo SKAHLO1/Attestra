@@ -2,5 +2,11 @@
   "program": "velero_attender.aleo",
   "version": "0.1.0",
   "description": "Decentralized proof-of-attendance badge system for events",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "credits.aleo",
+      "location": "network"
+    }
+  ]
 }

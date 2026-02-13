@@ -1,3 +1,5 @@
+import credits.aleo;
+
 program velero_attender.aleo {
     record Badge {
         owner: address,
@@ -135,5 +137,23 @@ program velero_attender.aleo {
             max_attendees: event.max_attendees,
             is_active: false,
         };
+    }
+
+    // Private transfer of credits using credits.aleo
+    // This allows users to privately transfer credits while interacting with the application
+    async transition transfer_private(
+        input_record: credits.aleo/credits,
+        recipient: address,
+        amount: u64
+    ) -> (credits.aleo/credits, credits.aleo/credits, Future) {
+        // Call the credits.aleo transfer_private function
+        let (recipient_record, change_record): (credits.aleo/credits, credits.aleo/credits) = credits.aleo/transfer_private(input_record, recipient, amount);
+
+        // We can add additional logic here if needed, but for now we just wrap the call
+        return (recipient_record, change_record, finalize_transfer_private());
+    }
+
+    async function finalize_transfer_private() {
+        // No-op finalize for now
     }
 }
