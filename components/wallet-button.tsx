@@ -1,6 +1,6 @@
 "use client"
 
-import { WalletMultiButton } from "@demox-labs/aleo-wallet-adapter-reactui"
+import { WalletMultiButton } from "@provablehq/aleo-wallet-adaptor-react-ui"
 
 export default function WalletButton() {
   return (
