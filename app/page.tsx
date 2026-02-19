@@ -9,6 +9,7 @@ import BadgePortfolio from "@/components/badge-portfolio"
 import Header from "@/components/header"
 import UseCaseShowcase from "@/components/onboarding/use-case-showcase"
 import HowItWorks from "@/components/onboarding/how-it-works"
+import Pricing from "@/components/pricing"
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react"
 import { useAuth } from "@/lib/firebase/auth-context"
 import { LoginDialog } from "@/components/auth/login-dialog"
@@ -211,6 +212,11 @@ export default function Home() {
             {/* Educational Sections */}
             <UseCaseShowcase />
             <HowItWorks />
+            <Pricing onGetStarted={(tier) => {
+              if (tier === "Free" || tier === "Pro") {
+                handleRoleSelection("organizer")
+              }
+            }} />
           </>
         ) : (
           <div className="container mx-auto px-4 py-8 max-w-7xl">

@@ -45,8 +45,8 @@
 ### Blockchain
 - **Network**: [Aleo Testnet Beta](https://aleo.org)
 - **Smart Contract**: [Leo Programming Language](https://docs.leo-lang.org/)
-- **Deployed Program**: `velero_attender.aleo` on testnet beta
-- **Wallet Integration**: [@demox-labs/aleo-wallet-adapter](https://github.com/demox-labs/aleo-wallet-adapter)
+- **Deployed Program**: `veleo_hero.aleo` on testnet beta
+- **Wallet Integration**: [@provablehq/aleo-wallet-adaptor-react](https://github.com/ProvableHQ/aleo-wallet-adapter)
 - **Explorer**: [Provable Explorer](https://testnet.explorer.provable.com/)
 
 ### Backend & Database
@@ -84,9 +84,9 @@ pnpm install
 
 The Veleo smart contract is **already deployed** to Aleo testnet beta:
 
-- **Program ID**: `velero_attender.aleo`
+- **Program ID**: `veleo_hero.aleo`
 - **Network**: Testnet Beta
-- **Explorer**: [View on Provable Explorer](https://testnet.explorer.provable.com/program/velero_attender.aleo)
+- **Explorer**: [View on Provable Explorer](https://testnet.explorer.provable.com/program/veleo_hero.aleo)
 
 #### Contract Functions
 
@@ -115,7 +115,7 @@ Create a `.env.local` file in the root directory:
 
 ```env
 # Aleo Configuration
-NEXT_PUBLIC_ALEO_PROGRAM_ID=velero_attender.aleo
+NEXT_PUBLIC_ALEO_PROGRAM_ID=veleo_hero.aleo
 NEXT_PUBLIC_ALEO_NETWORK=testnet
 NEXT_PUBLIC_ALEO_API_ENDPOINT=https://api.explorer.aleo.org/v1
 
@@ -199,7 +199,7 @@ veleo/
 
 ## 🔐 Smart Contract Architecture
 
-The Veleo smart contract (`velero_attender.aleo`) is written in Leo and deployed on Aleo testnet beta.
+The Veleo smart contract (`veleo_hero.aleo`) is written in Leo and deployed on Aleo testnet beta.
 
 ### Records (Private State)
 
@@ -252,12 +252,183 @@ record Event {
 
 ### Deployed Contract
 
-- **Program ID**: `velero_attender.aleo`
+- **Program ID**: `veleo_hero.aleo`
 - **Network**: Aleo Testnet Beta
 - **Chain ID**: `testnetbeta`
-- **Explorer**: [https://testnet.explorer.provable.com/program/velero_attender.aleo](https://testnet.explorer.provable.com/program/velero_attender.aleo)
+- **Explorer**: [https://testnet.explorer.provable.com/program/veleo_hero.aleo](https://testnet.explorer.provable.com/program/veleo_hero.aleo)
 
-## 🎨 Theme System
+## �️ System Architecture
+
+### High-Level Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          VELEO PLATFORM                             │
+│                                                                     │
+│  ┌─────────────────────────┐    ┌──────────────────────────────┐   │
+│  │      FRONTEND (Next.js) │    │     ALEO BLOCKCHAIN          │   │
+│  │                         │    │                              │   │
+│  │  ┌───────────────────┐  │    │  ┌────────────────────────┐ │   │
+│  │  │  Organizer        │  │    │  │  veleo_hero.aleo       │ │   │
+│  │  │  Dashboard        │──┼────┼─▶│                        │ │   │
+│  │  │  - Event Form     │  │    │  │  create_event()        │ │   │
+│  │  │  - QR Console     │  │    │  │  claim_badge()         │ │   │
+│  │  │  - Event List     │  │    │  │  transfer()            │ │   │
+│  │  └───────────────────┘  │    │  │  verify()              │ │   │
+│  │                         │    │  └────────────────────────┘ │   │
+│  │  ┌───────────────────┐  │    │                              │   │
+│  │  │  Attendee Portal  │  │    │  ┌────────────────────────┐ │   │
+│  │  │  - Badge Claimer  │──┼────┼─▶│  credits.aleo          │ │   │
+│  │  │  - Badge Portfolio│  │    │  │  transfer_public()     │ │   │
+│  │  └───────────────────┘  │    │  └────────────────────────┘ │   │
+│  │                         │    │                              │   │
+│  │  ┌───────────────────┐  │    │  ┌────────────────────────┐ │   │
+│  │  │  Wallet Adapter   │  │    │  │  ZK Proof Engine       │ │   │
+│  │  │  - Leo Wallet     │──┼────┼─▶│  (Aleo Testnet)        │ │   │
+│  │  │  - Shield Wallet  │  │    │  └────────────────────────┘ │   │
+│  │  │  - Puzzle Wallet  │  │    └──────────────────────────────┘   │
+│  │  │  - Fox Wallet     │  │                                       │
+│  │  └───────────────────┘  │    ┌──────────────────────────────┐   │
+│  └─────────────────────────┘    │     FIREBASE (Backend)       │   │
+│                                 │                              │   │
+│  ┌─────────────────────────┐    │  ┌────────────────────────┐ │   │
+│  │    AUTH LAYER           │    │  │  Firestore Collections │ │   │
+│  │                         │    │  │  - users               │ │   │
+│  │  Firebase Auth          │    │  │  - events              │ │   │
+│  │  - Email/Password       │────┼─▶│  - badges              │ │   │
+│  │  - Google OAuth         │    │  │  - claimCodes          │ │   │
+│  └─────────────────────────┘    │  └────────────────────────┘ │   │
+│                                 │                              │   │
+│                                 │  ┌────────────────────────┐ │   │
+│                                 │  │  Firebase Auth         │ │   │
+│                                 │  │  - Session management  │ │   │
+│                                 │  │  - Role-based access   │ │   │
+│                                 │  └────────────────────────┘ │   │
+│                                 └──────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+#### Badge Generation Flow (Organizer)
+
+```
+Organizer                  Frontend               Firebase           Aleo Blockchain
+    │                          │                      │                     │
+    │── Connect Wallet ────────▶│                      │                     │
+    │── Create Event ──────────▶│                      │                     │
+    │                          │── Store event ───────▶│                     │
+    │                          │── executeTransaction ─────────────────────▶│
+    │                          │                      │  create_event() ZK  │
+    │                          │◀─ TX confirmed ───────────────────────────│
+    │                          │                      │                     │
+    │── Generate QR Codes ─────▶│                      │                     │
+    │                          │── Pay 0.1 LEO/badge ──────────────────────▶│
+    │                          │                      │  transfer_public()  │
+    │                          │◀─ TX confirmed ───────────────────────────│
+    │                          │── Store claim codes ─▶│                     │
+    │◀─ QR Codes displayed ────│                      │                     │
+```
+
+#### Badge Claiming Flow (Attendee)
+
+```
+Attendee                   Frontend               Firebase           Aleo Blockchain
+    │                          │                      │                     │
+    │── Connect Wallet ────────▶│                      │                     │
+    │── Enter Claim Code ──────▶│                      │                     │
+    │                          │── Validate code ─────▶│                     │
+    │                          │◀─ Code valid ─────────│                     │
+    │                          │── Check eligibility ──▶│                     │
+    │                          │◀─ Eligible ───────────│                     │
+    │                          │── executeTransaction ─────────────────────▶│
+    │                          │                      │  claim_badge() ZK   │
+    │                          │◀─ Badge minted ────────────────────────────│
+    │                          │── Store badge record ─▶│                     │
+    │                          │── Mark code as used ──▶│                     │
+    │◀─ Badge in portfolio ────│                      │                     │
+```
+
+### Component Architecture
+
+```
+app/
+└── page.tsx                        ← Root page, role-based routing
+    │
+    ├── OrganizerDashboard
+    │   ├── EventForm               ← Create events (on-chain + Firestore)
+    │   ├── EventList               ← List events with stats
+    │   │   └── QRCodeGenerator     ← Generate & manage claim codes
+    │   └── BadgePortfolio          ← Organizer's own badges
+    │
+    └── AttendeePortal
+        ├── BadgeClaimer            ← Claim badges via code/QR
+        └── BadgePortfolio          ← Attendee's badge collection
+```
+
+### Hybrid Storage Model
+
+Veleo uses a **dual-layer storage** approach to balance privacy, cost, and performance:
+
+| Data | Storage | Reason |
+|------|---------|--------|
+| Badge ownership | Aleo blockchain (private record) | Cryptographically owned, ZK-verified |
+| Event on-chain ID | Aleo blockchain (public mapping) | Publicly auditable |
+| Badge counts | Aleo blockchain (public mapping) | Transparent aggregate stats |
+| Event metadata | Firebase Firestore | Fast queries, rich data |
+| Claim codes | Firebase Firestore | Single-use validation |
+| User profiles & roles | Firebase Firestore | Auth & role management |
+| Badge metadata | Firebase Firestore | Searchable, filterable |
+| Aleo TX IDs | Firebase Firestore | Cross-reference on-chain proofs |
+
+### Wallet Adapter Layer
+
+```
+@provablehq/aleo-wallet-adaptor-react  (Provider + useWallet hook)
+        │
+        ├── @provablehq/aleo-wallet-adaptor-leo     (Leo Wallet)
+        ├── @provablehq/aleo-wallet-adaptor-shield  (Shield Wallet)
+        ├── @provablehq/aleo-wallet-adaptor-puzzle  (Puzzle Wallet)
+        └── @provablehq/aleo-wallet-adaptor-fox     (Fox Wallet)
+
+Transaction execution:
+  adapter.executeTransaction(TransactionOptions)
+    └── { program, function, inputs, fee, privateFee }
+```
+
+### Fee Model
+
+| Action | Who Pays | Amount | Destination |
+|--------|----------|--------|-------------|
+| Generate badge codes | Organizer | 0.1 LEO per code | Treasury |
+| Claim badge (ZK proof) | Network fee (Aleo) | ~gas | Aleo validators |
+| Attendee claiming | Free | 0 LEO | — |
+
+### Security Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│              SECURITY LAYERS                    │
+│                                                 │
+│  Layer 1: Firebase Auth                         │
+│  ├── Email/Password + Google OAuth              │
+│  ├── Role-based access (organizer / attendee)   │
+│  └── Firestore security rules per role          │
+│                                                 │
+│  Layer 2: Claim Code Validation                 │
+│  ├── Single-use codes (marked used on claim)    │
+│  ├── Event eligibility checks                   │
+│  └── Prerequisite event gating                  │
+│                                                 │
+│  Layer 3: Aleo ZK Proofs                        │
+│  ├── All transactions verified with ZK-SNARKs   │
+│  ├── Badge records encrypted (owner-only)       │
+│  ├── No private keys ever leave the wallet      │
+│  └── Public mappings for aggregate auditability │
+└─────────────────────────────────────────────────┘
+```
+
+## � Theme System
 
 Veleo supports both light and dark modes with:
 - System preference detection
@@ -267,34 +438,36 @@ Veleo supports both light and dark modes with:
 
 ## 💼 Wallet Integration
 
-Veleo uses the official **Aleo Wallet Adapter** library for universal wallet support.
+Veleo uses the official **Provable Aleo Wallet Adapter** library for universal wallet support.
 
 ### Supported Wallets
 - **[Leo Wallet](https://leo.app/)** - Official Aleo wallet browser extension
+- **[Shield Wallet](https://shieldwallet.io/)** - Privacy-focused Aleo wallet
 - **[Puzzle Wallet](https://puzzle.online/)** - Community-built Aleo wallet
-- **Future wallets** - Any wallet implementing the Aleo Wallet Adapter standard
+- **[Fox Wallet](https://foxwallet.com/)** - Multi-chain wallet with Aleo support
 
 ### Integration Details
 
 **Libraries Used:**
-- `@demox-labs/aleo-wallet-adapter-base` - Core wallet adapter types
-- `@demox-labs/aleo-wallet-adapter-react` - React hooks and context
-- `@demox-labs/aleo-wallet-adapter-reactui` - Pre-built UI components
-- `@demox-labs/aleo-wallet-adapter-leo` - Leo Wallet adapter
+- `@provablehq/aleo-wallet-adaptor-react` - React hooks, context, and provider
+- `@provablehq/aleo-wallet-adaptor-leo` - Leo Wallet adapter
+- `@provablehq/aleo-wallet-adaptor-shield` - Shield Wallet adapter
+- `@provablehq/aleo-wallet-adaptor-puzzle` - Puzzle Wallet adapter
+- `@provablehq/aleo-wallet-adaptor-fox` - Fox Wallet adapter
 
 **Features:**
 - Multi-wallet support with automatic detection
 - Transaction signing for `create_event` and `claim_badge`
-- Network validation (testnetbeta)
+- Network validation (testnet)
 - Public key display and copy functionality
 - Seamless connect/disconnect flow
 
 **Transaction Flow:**
-1. User connects wallet via WalletMultiButton
-2. App requests transaction execution via `requestTransaction()`
+1. User connects wallet via wallet selector
+2. App calls `adapter.executeTransaction(TransactionOptions)`
 3. Wallet prompts user to approve transaction
-4. Transaction is broadcast to Aleo network
-5. Transaction ID is returned and tracked
+4. ZK proof is generated and broadcast to Aleo network
+5. Transaction ID is returned and stored in Firebase
 
 ## 🏆 Badge Categories
 
@@ -401,9 +574,11 @@ Contributions are welcome! Please follow these steps:
 - [Aleo Discord Community](https://discord.com/invite/aleo)
 
 ### Wallet Resources
-- [Aleo Wallet Adapter GitHub](https://github.com/demox-labs/aleo-wallet-adapter)
+- [Provable Aleo Wallet Adapter](https://github.com/ProvableHQ/aleo-wallet-adapter)
 - [Leo Wallet](https://leo.app/)
+- [Shield Wallet](https://shieldwallet.io/)
 - [Puzzle Wallet](https://puzzle.online/)
+- [Fox Wallet](https://foxwallet.com/)
 
 ### Development Resources
 - [Next.js Documentation](https://nextjs.org/docs)
@@ -411,8 +586,8 @@ Contributions are welcome! Please follow these steps:
 - [TailwindCSS Documentation](https://tailwindcss.com/docs)
 
 ### Deployed Contract
-- **Program**: `velero_attender.aleo`
-- **Explorer**: [View on Provable Explorer](https://testnet.explorer.provable.com/program/velero_attender.aleo)
+- **Program**: `veleo_hero.aleo`
+- **Explorer**: [View on Provable Explorer](https://testnet.explorer.provable.com/program/veleo_hero.aleo)
 
 ## 🐛 Troubleshooting
 
@@ -473,7 +648,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **[Aleo](https://aleo.org)** - For pioneering zero-knowledge blockchain technology and Leo programming language
-- **[Demox Labs](https://github.com/demox-labs)** - For the Aleo Wallet Adapter library enabling universal wallet support
+- **[Provable HQ](https://github.com/ProvableHQ)** - For the Aleo Wallet Adapter library enabling universal wallet support
 - **[Firebase](https://firebase.google.com)** - For authentication and database infrastructure
 - **[shadcn/ui](https://ui.shadcn.com/)** - For beautiful, accessible UI components
 - **[Radix UI](https://www.radix-ui.com/)** - For primitive component architecture
