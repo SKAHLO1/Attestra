@@ -59,7 +59,7 @@ export function LoginDialog({ open, onOpenChange, role }: LoginDialogProps) {
         title: "Success!",
         description: "Loading your dashboard...",
       })
-      // Dialog will close automatically when userProfile loads
+      onOpenChange(false)
     } catch (error: any) {
       toast({
         title: "Error",
@@ -104,7 +104,7 @@ export function LoginDialog({ open, onOpenChange, role }: LoginDialogProps) {
         title: "Success!",
         description: "Account created! Loading your dashboard...",
       })
-      // Dialog will close automatically when userProfile loads
+      onOpenChange(false)
     } catch (error: any) {
       toast({
         title: "Error",
@@ -127,6 +127,7 @@ export function LoginDialog({ open, onOpenChange, role }: LoginDialogProps) {
           title: "Success!",
           description: "Loading your dashboard...",
         })
+        onOpenChange(false)
       })
       .catch((error: any) => {
         toast({

@@ -231,7 +231,10 @@ export default function HamburgerMenu({ onLogout }: HamburgerMenuProps) {
 
             <LoginDialog
                 open={showLoginDialog}
-                onOpenChange={setShowLoginDialog}
+                onOpenChange={(isOpen) => {
+                    setShowLoginDialog(isOpen)
+                    if (!isOpen) setOpen(false)
+                }}
                 role={selectedRole}
             />
         </Sheet>
