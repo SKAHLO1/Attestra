@@ -40,7 +40,6 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const applicationId = getApplicationId()
   const { user, userProfile, logout } = useAuth()
   const { wallet: walletAdapter, address } = useWallet()
-  const requestTransaction = (walletAdapter?.adapter as any)?.requestTransaction
   const { claimBadge, loading, error } = useEventOperations()
   const { badges: userBadges, refetch } = useUserBadges()
 
@@ -85,7 +84,8 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
 
     try {
       // Pass existing badges for client-side eligibility logic
-      const badgeId = await claimBadge(claimCode, address || undefined, requestTransaction, userBadges)
+      const adapter = (walletAdapter?.adapter as any)
+      const badgeId = await claimBadge(claimCode, address || undefined, adapter?.executeTransaction?.bind(adapter), userBadges)
 
       setClaimStatus({
         type: 'success',
