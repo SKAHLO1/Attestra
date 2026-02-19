@@ -23,9 +23,15 @@ export const AleoWalletProvider: FC<AleoWalletProviderProps> = ({ children }) =>
       new LeoWalletAdapter({
         appName: "Veleo",
       }),
-      new ShieldWalletAdapter(),
-      new PuzzleWalletAdapter(),
-      new FoxWalletAdapter(),
+      new ShieldWalletAdapter({
+        appName: "Veleo",
+      }),
+      new PuzzleWalletAdapter({
+        appName: "Veleo",
+      }),
+      new FoxWalletAdapter({
+        appName: "Veleo",
+      }),
     ],
     []
   )
@@ -36,7 +42,7 @@ export const AleoWalletProvider: FC<AleoWalletProviderProps> = ({ children }) =>
       autoConnect={true}
       network={Network.TESTNET}
       decryptPermission={DecryptPermission.UponRequest}
-      programs={["credits.aleo", "velero_attender.aleo"]}
+      programs={["credits.aleo", "veleo_hero.aleo"]}
       onError={(error) => console.error("Wallet Adapter Error:", error?.message || error)}
     >
       <WalletModalProvider>{children}</WalletModalProvider>
