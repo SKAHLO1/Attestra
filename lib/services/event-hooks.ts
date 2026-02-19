@@ -179,22 +179,20 @@ export function useEventOperations() {
             return a & a;
           }, 0);
 
-          // Call claim_badge transition on Aleo
-          const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "velero_attender.aleo";
+          // Call claim_badge transition on Aleo (free for attendees - organizer already paid)
+          const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veleo_hero.aleo";
+          
+          // Both Leo and Shield wallets use TransactionOptions via executeTransaction
           const aleoTransaction = {
-            address: walletPublicKey,
-            chainId: "testnetbeta",
-            transitions: [{
-              program: programId,
-              functionName: "claim_badge",
-              inputs: [
-                `${Math.abs(eventIdHash)}field`, // event_id
-                `${Math.abs(badgeIdHash)}field`, // badge_id
-                `${Date.now()}u64` // timestamp
-              ]
-            }],
-            fee: 1000000, // 1.0 credits (increased for testnet)
-            feePrivate: false,
+            program: programId,
+            function: "claim_badge",
+            inputs: [
+              `${Math.abs(eventIdHash)}field`, // event_id
+              `${Math.abs(badgeIdHash)}field`, // badge_id
+              `${Date.now()}u64` // timestamp
+            ],
+            fee: 100000,
+            privateFee: false,
           };
 
           console.log('[ClaimBadge] Aleo transaction:', aleoTransaction);
