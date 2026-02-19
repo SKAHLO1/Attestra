@@ -93,7 +93,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
       }
 
       // Also store in Firebase for UI/metadata
-      const eventId = await createEvent({
+      const eventData: any = {
         name: formData.name,
         description: formData.description,
         startDate: new Date(formData.startDate || Date.now()),
@@ -103,9 +103,15 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
         imageUrl: formData.imageUrl,
         maxAttendees: formData.maxAttendees,
         isActive: true,
-        prerequisiteEventId: formData.prerequisiteEventId === "none" ? undefined : formData.prerequisiteEventId,
         minReputationLevel: formData.minReputationLevel,
-      })
+      };
+
+      // Only add prerequisiteEventId if it's not "none"
+      if (formData.prerequisiteEventId !== "none") {
+        eventData.prerequisiteEventId = formData.prerequisiteEventId;
+      }
+
+      const eventId = await createEvent(eventData)
 
       setSuccessMessage(`Event created successfully! Fee: ${EVENT_CREATION_FEE} LEO`)
       onSubmit(formData)
