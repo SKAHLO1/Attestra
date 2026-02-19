@@ -16,6 +16,9 @@ import { generateClaimCode, generateQRCodeURL, encodeQRData, type QRCodeData } f
 import { useEventOperations } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react"
+import { collection, query, where, getDocs } from "firebase/firestore"
+import { db } from "@/lib/firebase/config"
+import { Download } from "lucide-react"
 
 interface QRCodeGeneratorProps {
   eventId: string
@@ -23,20 +26,27 @@ interface QRCodeGeneratorProps {
   issuer: string
 }
 
-const BADGE_CREATION_FEE = 0.001 // 0.001 LEO per badge
+const BADGE_CREATION_FEE = 0.1 // 0.1 LEO per badge
 
 export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGeneratorProps) {
   const applicationId = getApplicationId()
   const { addClaimCodes, loading: operationLoading } = useEventOperations()
-  const { address } = useWallet()
+  const { wallet: walletAdapter, address } = useWallet()
   const [generatedCodes, setGeneratedCodes] = useState<Array<{ code: string; qrUrl: string }>>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const handleGenerateQRCodes = async (count = 10) => {
+    const adapter = walletAdapter?.adapter as any
+    
     if (!address) {
       setError("Please connect your wallet to generate badges")
+      return
+    }
+
+    if (!adapter?.executeTransaction) {
+      setError(`Wallet not ready. Please reconnect your wallet.`)
       return
     }
 
@@ -48,12 +58,35 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
       const totalFee = BADGE_CREATION_FEE * count
       console.log(`[QRCodeGenerator] Processing payment of ${totalFee} LEO for ${count} badges...`)
 
-      // Note: Badges are NOT pre-minted here to save gas fees
-      // Instead, badges are minted on-chain when attendees CLAIM them
-      // This is more efficient and only charges for badges actually used
-      console.log(`[QRCodeGenerator] Generated ${count} claim codes`)
-      console.log(`[QRCodeGenerator] Badges will be minted on-chain when attendees claim them`)
-      console.log(`[QRCodeGenerator] Estimated total cost if all claimed: ${totalFee} LEO`)
+      // Charge organizer upfront for badge generation
+      try {
+        const feeInMicrocredits = Math.floor(totalFee * 1000000) // Convert LEO to microcredits
+        const treasuryAddress = address
+
+        // Both Leo and Shield wallets use TransactionOptions format via executeTransaction
+        const feeTransaction = {
+          program: "credits.aleo",
+          function: "transfer_public",
+          inputs: [
+            treasuryAddress,
+            `${feeInMicrocredits}u64`
+          ],
+          fee: 100000,
+          privateFee: false,
+        };
+
+        console.log(`[QRCodeGenerator] Charging organizer ${totalFee} LEO for ${count} badge codes...`)
+        const txResult = await adapter.executeTransaction(feeTransaction)
+        console.log('[QRCodeGenerator] Fee payment successful:', txResult)
+
+        // Wait for transaction to process
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      } catch (txError: any) {
+        console.error('[QRCodeGenerator] Payment failed:', txError)
+        throw new Error(`Payment failed: ${txError.message || 'Transaction rejected'}. Please try again.`)
+      }
+
+      console.log(`[QRCodeGenerator] Payment confirmed. Generating ${count} claim codes...`)
 
       // Generate claim codes and QR codes with LEO prefix
       const newCodes = Array.from({ length: count }, (_, i) => {
@@ -80,7 +113,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
       await addClaimCodes(eventId, claimCodesOnly)
 
       setGeneratedCodes([...generatedCodes, ...newCodes])
-      setSuccessMessage(`Successfully generated ${count} claim codes! Badges will be minted on Aleo blockchain when attendees claim them (${BADGE_CREATION_FEE} LEO per claim).`)
+      setSuccessMessage(`Successfully generated ${count} claim codes! Paid ${totalFee} LEO upfront. Badges will be minted on Aleo blockchain when attendees claim them (free for attendees).`)
     } catch (err: any) {
       setError(err.message || 'Failed to generate and register claim codes')
       console.error('[QRCodeGenerator] Error:', err)
@@ -102,6 +135,63 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
     navigator.clipboard.writeText(code)
   }
 
+  const handleDownloadAllCodes = async () => {
+    try {
+      setIsGenerating(true)
+      setError(null)
+
+      // Fetch all claim codes for this event from Firebase
+      const claimCodesRef = collection(db, 'claimCodes')
+      const q = query(claimCodesRef, where('eventId', '==', eventId))
+      const querySnapshot = await getDocs(q)
+
+      if (querySnapshot.empty) {
+        setError('No claim codes found for this event')
+        return
+      }
+
+      // Generate CSV content with claim codes and QR URLs
+      const csvRows = ['Claim Code,QR Code URL,Event Name,Status']
+      
+      querySnapshot.docs.forEach((doc) => {
+        const data = doc.data()
+        const claimCode = data.code
+        const used = data.used || false
+        const qrData: QRCodeData = {
+          claimCode,
+          eventId,
+          eventName,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          issuer,
+        }
+        const encoded = encodeQRData(qrData)
+        const qrUrl = generateQRCodeURL(encoded)
+        
+        csvRows.push(`${claimCode},${qrUrl},${eventName},${used ? 'Used' : 'Available'}`)
+      })
+
+      // Create and download CSV file
+      const csvContent = csvRows.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      
+      link.setAttribute('href', url)
+      link.setAttribute('download', `${eventName.replace(/\s+/g, '-')}-claim-codes.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      setSuccessMessage(`Successfully downloaded ${querySnapshot.size} claim codes!`)
+    } catch (err: any) {
+      setError(err.message || 'Failed to download claim codes')
+      console.error('[QRCodeGenerator] Download error:', err)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   return (
     <Card className="border border-gray-200 bg-white">
       <CardHeader>
@@ -109,7 +199,7 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
         <CardDescription>Generate and manage QR codes for attendee claim codes</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             onClick={() => handleGenerateQRCodes(10)}
             disabled={isGenerating || operationLoading}
@@ -124,6 +214,15 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
             className="bg-transparent"
           >
             Generate 50
+          </Button>
+          <Button
+            onClick={handleDownloadAllCodes}
+            disabled={isGenerating || operationLoading}
+            variant="outline"
+            className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 ml-auto"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download All Codes
           </Button>
         </div>
 
@@ -141,7 +240,8 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>💡 Claim codes are stored in Firebase - badges mint on Aleo when attendees claim</p>
-          <p>💰 Fee: {BADGE_CREATION_FEE} LEO per badge (paid by attendee when claiming)</p>
+          <p>💰 Fee: {BADGE_CREATION_FEE} LEO per badge code (paid by organizer upfront)</p>
+          <p>🎁 Badge claiming is FREE for attendees - you already paid!</p>
           <p>🏷️ All codes start with "LEO" prefix for easy identification</p>
         </div>
 
