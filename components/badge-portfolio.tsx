@@ -40,9 +40,24 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedBadge, setSelectedBadge] = useState<BadgeData | null>(null)
+  const [shareMessage, setShareMessage] = useState<string | null>(null)
 
   const applicationId = getApplicationId()
   const { badges: userBadges, loading, error } = useAllEventBadges(applicationId)
+
+  const getCategoryEmoji = (category: string) => {
+    const categoryMap: Record<string, string> = {
+      conference: '🌐',
+      Conference: '🌐',
+      hackathon: '🏆',
+      Hackathon: '🏆',
+      meetup: '🎓',
+      Meetup: '🎓',
+      workshop: '🔒',
+      Workshop: '🔒',
+    }
+    return categoryMap[category] || '🎫'
+  }
 
   // Convert Firebase badges to BadgeData format
   const badges: BadgeData[] = useMemo(() => {
@@ -66,20 +81,6 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
       }
     })
   }, [userBadges, applicationId])
-
-  const getCategoryEmoji = (category: string) => {
-    const categoryMap: Record<string, string> = {
-      conference: '🌐',
-      Conference: '🌐',
-      hackathon: '🏆',
-      Hackathon: '🏆',
-      meetup: '🎓',
-      Meetup: '🎓',
-      workshop: '🔒',
-      Workshop: '🔒',
-    }
-    return categoryMap[category] || '🎫'
-  }
 
   const filteredBadges = badges.filter((badge) => {
     const matchesCategory = selectedCategory === "all" || badge.category === selectedCategory
@@ -109,6 +110,70 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
         return "bg-orange-500/10 text-orange-700 border-orange-200"
       default:
         return "bg-gray-500/10 text-gray-700 border-gray-200"
+    }
+  }
+
+  const handleExportData = () => {
+    const data = badges.map((badge) => ({
+      eventName: badge.eventName,
+      category: badge.category,
+      issuer: badge.issuer,
+      claimedAt: badge.claimedAt.toISOString(),
+      tokenId: badge.tokenId,
+      txHash: badge.txHash,
+      contractAddress: badge.contractAddress,
+      verified: badge.verified,
+    }))
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `veleo-badges-${new Date().toISOString().split("T")[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportPDF = () => {
+    const lines: string[] = [
+      `VELEO BADGE PORTFOLIO`,
+      `Exported: ${new Date().toLocaleString()}`,
+      `Total Badges: ${badges.length}`,
+      ``,
+      ...badges.map((badge, i) =>
+        [
+          `${i + 1}. ${badge.eventName}`,
+          `   Category: ${badge.category}`,
+          `   Claimed: ${badge.claimedAt.toLocaleDateString()}`,
+          `   Token ID: ${badge.tokenId}`,
+          `   TX: ${badge.txHash}`,
+          ``,
+        ].join("\n")
+      ),
+    ]
+    const content = lines.join("\n")
+    const blob = new Blob([content], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `veleo-badges-${new Date().toISOString().split("T")[0]}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleShareProfile = () => {
+    const url = `${window.location.origin}?wallet=${wallet}`
+    if (navigator.share) {
+      navigator.share({
+        title: "My Veleo Badge Portfolio",
+        text: `Check out my ${badges.length} verified attendance badges on Veleo!`,
+        url,
+      }).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setShareMessage("Link Copied!")
+        setTimeout(() => setShareMessage(null), 2500)
+      })
     }
   }
 
@@ -365,23 +430,23 @@ export default function BadgePortfolio({ wallet }: BadgePortfolioProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Button variant="outline" className="bg-transparent hover:bg-primary/10">
+            <Button variant="outline" className="bg-transparent hover:bg-primary/10" onClick={handleExportPDF}>
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
               Export as PDF
             </Button>
-            <Button variant="outline" className="bg-transparent hover:bg-primary/10">
+            <Button variant="outline" className="bg-transparent hover:bg-primary/10" onClick={handleExportData}>
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Export Data
             </Button>
-            <Button className="bg-gray-700 hover:bg-gray-800 text-white transition-opacity shadow-lg shadow-gray-200">
+            <Button className="bg-gray-700 hover:bg-gray-800 text-white transition-opacity shadow-lg shadow-gray-200" onClick={handleShareProfile}>
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>
-              Share Profile
+              {shareMessage ?? "Share Profile"}
             </Button>
           </div>
         </CardContent>
