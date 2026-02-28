@@ -10,18 +10,18 @@ import Header from "@/components/header"
 import UseCaseShowcase from "@/components/onboarding/use-case-showcase"
 import HowItWorks from "@/components/onboarding/how-it-works"
 import Pricing from "@/components/pricing"
-import { useWallet } from "@provablehq/aleo-wallet-adaptor-react"
+import { useFlowWallet } from "@/lib/flow/hooks"
 import { useAuth } from "@/lib/firebase/auth-context"
 import { LoginDialog } from "@/components/auth/login-dialog"
 import { Button } from "@/components/ui/button"
 import { Sparkles } from "lucide-react"
-import LeoPriceWidget from "@/components/leo-price-widget"
+import FlowPriceWidget from "@/components/leo-price-widget"
 
 export default function Home() {
   const [userRole, setUserRole] = useState<"organizer" | "attendee" | null>(null)
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [selectedRole, setSelectedRole] = useState<"organizer" | "attendee">("attendee")
-  const { address } = useWallet()
+  const { address } = useFlowWallet()
   const { user, userProfile, logout } = useAuth()
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function Home() {
                   <div className="relative w-full mb-12">
                     {/* Market Data Widget - Far Left Positioned */}
                     <div className="hidden lg:block absolute left-0 top-1/2 -translate-y-1/2 z-20 animate-in fade-in slide-in-from-left-8 duration-1000">
-                      <LeoPriceWidget />
+                      <FlowPriceWidget />
                     </div>
 
                     {/* Community Image - Far Right Positioned */}
@@ -94,8 +94,8 @@ export default function Home() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                         <div className="absolute bottom-4 left-4 right-4">
-                          <p className="text-white text-[10px] font-black uppercase tracking-widest opacity-90">Veleo Ecosystem</p>
-                          <p className="text-white text-xs font-bold leading-tight">Empowering Private Attendance</p>
+                          <p className="text-white text-[10px] font-black uppercase tracking-widest opacity-90">Attestra Ecosystem</p>
+                          <p className="text-white text-xs font-bold leading-tight">AI-Verified Attendance on Flow</p>
                         </div>
                       </div>
                     </div>
@@ -104,14 +104,10 @@ export default function Home() {
                     <div className="flex justify-center animate-in fade-in duration-1000">
                       <div className="relative">
                         <div className="relative bg-white p-8 rounded-3xl border border-gray-200 shadow-2xl scale-110">
-                          <Image
-                            src="/veleo-logo.jpg"
-                            alt="Veleo"
-                            width={300}
-                            height={64}
-                            className="object-contain"
-                            priority
-                          />
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-5xl font-black tracking-tighter text-gray-900">Attestra</span>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">AI · Flow · Filecoin</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -120,7 +116,7 @@ export default function Home() {
                   {/* Badge */}
                   <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border-2 border-primary/30 mb-4 animate-in fade-in slide-in-from-bottom-3 duration-700 shadow-sm">
                     <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                    <span className="text-sm font-semibold text-gray-900">Powered by Aleo Zero-Knowledge Proofs</span>
+                    <span className="text-sm font-semibold text-gray-900">Powered by Flow Blockchain &amp; AI Verification</span>
                   </div>
 
                   {/* Main Headline */}
@@ -130,16 +126,16 @@ export default function Home() {
 
                   {/* Subheadline */}
                   <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-5 duration-700 delay-200">
-                    Issue and claim <span className="font-semibold text-gray-900">verifiable attendance badges</span> with zero-knowledge proofs.
-                    Not all attendance should be public — Veleo keeps your credentials private while maintaining full verifiability.
+                    Issue and claim <span className="font-semibold text-gray-900">AI-verified attendance badges</span> on the Flow blockchain.
+                    Event media is stored on <span className="font-semibold text-gray-900">Filecoin/IPFS</span> — immutable, decentralized, and verifiable forever.
                   </p>
 
                   {/* Feature Pills */}
                   <div className="flex flex-wrap items-center justify-center gap-4 pt-4 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-300">
                     {[
-                      { label: "Privacy-First", icon: "✓" },
-                      { label: "Zero-Knowledge", icon: "✓" },
-                      { label: "Fully Verifiable", icon: "✓" },
+                      { label: "AI-Verified", icon: "✓" },
+                      { label: "Flow Blockchain", icon: "✓" },
+                      { label: "Filecoin Storage", icon: "✓" },
                     ].map((feature, idx) => (
                       <div
                         key={idx}
@@ -169,7 +165,7 @@ export default function Home() {
                       <div className="text-7xl mb-6 group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 inline-block">📋</div>
                       <h2 className="text-3xl font-bold mb-4 text-gray-900 transition-colors duration-300">Event Organizer</h2>
                       <p className="text-base text-gray-600 leading-relaxed group-hover:text-gray-700 transition-colors duration-300">
-                        Create events, manage attendees, and issue verifiable attendance badges on-chain with privacy guarantees
+                        Create events, manage attendees, and issue AI-verified attendance badges on Flow with Filecoin media storage
                       </p>
 
                       {/* Animated arrow */}
@@ -193,7 +189,7 @@ export default function Home() {
                       <div className="text-7xl mb-6 group-hover:scale-125 group-hover:rotate-12 transition-all duration-500 inline-block">🎟️</div>
                       <h2 className="text-3xl font-bold mb-4 text-gray-900 transition-colors duration-300">Attendee</h2>
                       <p className="text-base text-gray-600 leading-relaxed group-hover:text-gray-700 transition-colors duration-300">
-                        Scan QR codes, claim your attendance badges, and build your verifiable portfolio with complete privacy
+                        Scan QR codes, claim your AI-verified attendance badges, and build your on-chain portfolio on Flow
                       </p>
 
                       {/* Animated arrow */}
