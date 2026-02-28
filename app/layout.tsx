@@ -13,13 +13,13 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Veleo - Privacy-Preserving Attendance Verification",
-  description: "Issue and claim verifiable attendance badges on the Aleo blockchain with zero-knowledge proofs. Privacy-first event verification.",
-  keywords: ["blockchain", "aleo", "attendance", "badges", "web3", "zero-knowledge", "privacy", "proof of attendance"],
-  authors: [{ name: "Veleo" }],
+  title: "Attestra - AI-Verified Proof of Attendance on Flow",
+  description: "Issue and claim verifiable attendance badges on the Flow blockchain with AI-powered verification and Filecoin storage. The future of event credentials.",
+  keywords: ["blockchain", "flow", "attendance", "badges", "web3", "filecoin", "ipfs", "proof of attendance", "AI verification", "cadence"],
+  authors: [{ name: "Attestra" }],
   openGraph: {
-    title: "Veleo - Privacy-Preserving Attendance Verification",
-    description: "Issue and claim verifiable attendance badges on the Aleo blockchain with zero-knowledge proofs.",
+    title: "Attestra - AI-Verified Proof of Attendance on Flow",
+    description: "Issue and claim verifiable attendance badges on the Flow blockchain with AI-powered verification and Filecoin/IPFS storage.",
     type: "website",
   },
 }
