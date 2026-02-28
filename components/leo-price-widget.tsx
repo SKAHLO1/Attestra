@@ -21,7 +21,7 @@ interface ChartDataPoint {
     price: number
 }
 
-export default function LeoPriceWidget() {
+export default function FlowPriceWidget() {
     const [data, setData] = useState<PriceData | null>(null)
     const [chartData, setChartData] = useState<ChartDataPoint[]>([])
     const [loading, setLoading] = useState(true)
@@ -30,22 +30,20 @@ export default function LeoPriceWidget() {
     const fetchPriceData = async () => {
         try {
             setLoading(true)
-            // Fetch current price
             const priceRes = await fetch(
-                "https://api.coingecko.com/api/v3/simple/price?ids=aleo&vs_currencies=usd&include_24hr_change=true"
+                "https://api.coingecko.com/api/v3/simple/price?ids=flow&vs_currencies=usd&include_24hr_change=true"
             )
             const priceJson = await priceRes.json()
 
-            // Fetch 7-day chart data
             const chartRes = await fetch(
-                "https://api.coingecko.com/api/v3/coins/aleo/market_chart?vs_currency=usd&days=7&interval=daily"
+                "https://api.coingecko.com/api/v3/coins/flow/market_chart?vs_currency=usd&days=7&interval=daily"
             )
             const chartJson = await chartRes.json()
 
-            if (priceJson.aleo && chartJson.prices) {
+            if (priceJson.flow && chartJson.prices) {
                 setData({
-                    usd: priceJson.aleo.usd,
-                    usd_24h_change: priceJson.aleo.usd_24h_change
+                    usd: priceJson.flow.usd,
+                    usd_24h_change: priceJson.flow.usd_24h_change
                 })
 
                 const formattedChart = chartJson.prices.map((p: [number, number]) => ({
@@ -58,7 +56,7 @@ export default function LeoPriceWidget() {
                 throw new Error("Invalid response")
             }
         } catch (error) {
-            console.error("Failed to fetch Aleo data:", error)
+            console.error("Failed to fetch Flow data:", error)
             setError(true)
         } finally {
             setLoading(false)
@@ -100,10 +98,10 @@ export default function LeoPriceWidget() {
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-50">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-gray-900 flex items-center justify-center shadow-lg transform group-hover:rotate-12 transition-transform duration-500">
-                        <span className="text-sm font-black text-white italic">A</span>
+                        <span className="text-sm font-black text-white italic">F</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-0.5">ALEO NETWORK</span>
+                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-0.5">FLOW NETWORK</span>
                         <div className="flex items-baseline gap-1">
                             <span className="text-xl font-black text-gray-900 tabular-nums">
                                 ${usd.toFixed(2)}

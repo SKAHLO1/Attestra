@@ -27,8 +27,10 @@ export interface BadgeData {
   claimCode: string;
   claimed: boolean;
   claimedAt?: Date;
-  aleoTxId?: string;
-  aleoRecordId?: string;
+  flowTxId?: string;
+  ipfsCid?: string;
+  aiVerified?: boolean;
+  aiVerificationCid?: string;
   issuedAt: Date;
   category: EventCategory;
   owner: string;

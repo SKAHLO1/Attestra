@@ -5,7 +5,7 @@ import { Menu, X, User, LogOut, Wallet, Mail, Tag, LogIn, UserPlus } from "lucid
 import { LoginDialog } from "./auth/login-dialog"
 import { UserRole } from "@/lib/firebase/auth-context"
 import { Button } from "@/components/ui/button"
-import { useWallet } from "@provablehq/aleo-wallet-adaptor-react"
+import { useFlowWallet } from "@/lib/flow/hooks"
 import { useAuth } from "@/lib/firebase/auth-context"
 import WalletButton from "./wallet-button"
 import {
@@ -24,7 +24,7 @@ interface HamburgerMenuProps {
 
 export default function HamburgerMenu({ onLogout }: HamburgerMenuProps) {
     const [open, setOpen] = useState(false)
-    const { connected, disconnect, address } = useWallet()
+    const { connected, disconnect, address } = useFlowWallet()
     const { user, userProfile, logout } = useAuth()
 
     // Auth Dialog State
@@ -168,7 +168,7 @@ export default function HamburgerMenu({ onLogout }: HamburgerMenuProps) {
                         <div className="space-y-3">
                             <div className="flex items-center gap-2 text-gray-700 mb-2">
                                 <LogIn className="h-5 w-5" />
-                                <span className="text-sm font-semibold">Join Veleo</span>
+                                <span className="text-sm font-semibold">Join Attestra</span>
                             </div>
                             <div className="pl-7 flex flex-col gap-2">
                                 <Button

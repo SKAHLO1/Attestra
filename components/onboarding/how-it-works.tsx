@@ -7,8 +7,8 @@ export default function HowItWorks() {
         {
             number: "01",
             title: "Organizer Creates Event",
-            description: "Deploy event to Aleo blockchain using create_event transition",
-            detail: "On-chain transaction establishes event registry with privacy-preserving mappings",
+            description: "Deploy event to Flow blockchain, pin metadata to Filecoin/IPFS",
+            detail: "On-chain transaction establishes event registry; CID stored on Flow for immutability",
             color: "from-primary/20 to-primary/5",
             borderColor: "border-primary/30",
         },
@@ -23,8 +23,8 @@ export default function HowItWorks() {
         {
             number: "03",
             title: "Attendees Claim Badges",
-            description: "Scan QR code or enter claim code to initiate on-chain minting",
-            detail: "ZK proof generated and badge minted via claim_badge transition",
+            description: "Scan QR code or enter claim code to initiate AI-verified badge minting",
+            detail: "AI verifies attendance, proof hash committed to Flow, badge minted as NFT",
             color: "from-secondary/20 to-secondary/5",
             borderColor: "border-secondary/30",
         },
@@ -43,10 +43,10 @@ export default function HowItWorks() {
             <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-12">
                     <h2 className="text-4xl md:text-5xl font-bold gradient-text-hero mb-4">
-                        How Veleo Works
+                        How Attestra Works
                     </h2>
                     <p className="text-lg text-gray-900 dark:text-gray-100 max-w-2xl mx-auto">
-                        Privacy-preserving attendance verification powered by Aleo's zero-knowledge proofs
+                        AI-verified attendance on Flow blockchain with Filecoin/IPFS decentralized storage
                     </p>
                 </div>
 
@@ -87,9 +87,9 @@ export default function HowItWorks() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                                 </svg>
                             </div>
-                            <h4 className="font-bold mb-2">Aleo Blockchain</h4>
+                            <h4 className="font-bold mb-2">Flow Blockchain</h4>
                             <p className="text-sm text-gray-900 dark:text-gray-100">
-                                Smart contract execution, ZK proof verification, private record storage
+                                Cadence smart contracts, AI proof verification, on-chain badge NFTs
                             </p>
                         </div>
 
@@ -111,9 +111,9 @@ export default function HowItWorks() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
                             </div>
-                            <h4 className="font-bold mb-2">Zero-Knowledge Proofs</h4>
+                            <h4 className="font-bold mb-2">Filecoin / IPFS</h4>
                             <p className="text-sm text-gray-900 dark:text-gray-100">
-                                Every transaction generates ZK-SNARKs proving validity without revealing private data
+                                Event media, metadata, and AI proof artifacts stored on decentralized storage
                             </p>
                         </div>
                     </div>

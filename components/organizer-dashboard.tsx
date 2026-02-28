@@ -104,7 +104,7 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
       {loading && (
         <div className="py-20 flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Synchronizing Aleo Slate...</p>
+          <p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Synchronizing Flow Chain...</p>
         </div>
       )}
 

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useEventOperations, useUserBadges } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
-import { useWallet } from "@provablehq/aleo-wallet-adaptor-react"
+import { useFlowWallet } from "@/lib/flow/hooks"
 import { useAuth } from "@/lib/firebase/auth-context"
 import { LogOut, User, ShieldCheck, Trophy, Target, Star, Wallet, QrCode, History, ChevronRight } from "lucide-react"
 
@@ -39,7 +39,7 @@ interface AttendeePortalProps {
 export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const applicationId = getApplicationId()
   const { user, userProfile, logout } = useAuth()
-  const { wallet: walletAdapter, address } = useWallet()
+  const { address } = useFlowWallet()
   const { claimBadge, loading, error } = useEventOperations()
   const { badges: userBadges, refetch } = useUserBadges()
 
@@ -84,12 +84,11 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
 
     try {
       // Pass existing badges for client-side eligibility logic
-      const adapter = (walletAdapter?.adapter as any)
-      const badgeId = await claimBadge(claimCode, address || undefined, adapter?.executeTransaction?.bind(adapter), userBadges)
+      const badgeId = await claimBadge(claimCode, address || undefined, undefined, userBadges)
 
       setClaimStatus({
         type: 'success',
-        message: `ZK-Badge Claimed! Minted on Aleo Testnet.`
+        message: `Badge Claimed! Minted on Flow Testnet.`
       })
       setClaimCode("")
       setTimeout(() => refetch(), 2000)
@@ -130,7 +129,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
           <Wallet className="w-8 h-8 text-gray-400" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mb-2">Connect Your Wallet</h3>
-        <p className="text-gray-500 mb-8 max-w-xs mx-auto">Please connect your Aleo wallet to access your private attendance records and claim new ZK-badges.</p>
+        <p className="text-gray-500 mb-8 max-w-xs mx-auto">Please connect your Flow wallet to access your attendance records and claim new badges.</p>
       </Card>
     )
   }
@@ -148,7 +147,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                   {reputation.icon}
                 </div>
                 <div>
-                  <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">On-Chain Reputation</p>
+                  <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Flow On-Chain Reputation</p>
                   <h3 className="text-3xl font-black">{reputation.label}</h3>
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex gap-1">
@@ -164,7 +163,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                 <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Private Badges</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-black">{badgeCount}</span>
-                  <span className="text-sm font-bold text-gray-500">Verified</span>
+                  <span className="text-xs font-bold text-gray-400">Verified on Flow</span>
                 </div>
               </div>
             </div>
@@ -176,12 +175,12 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
             <div className="p-2 bg-blue-50 rounded-xl">
               <ShieldCheck className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-sm font-black text-gray-900 uppercase">ZK-Protection</p>
+            <p className="text-sm font-black text-gray-900 uppercase">AI-Verified Badges</p>
           </div>
           <p className="text-xs text-gray-500 leading-relaxed font-medium">
-            Your attendance record is encrypted on Aleo. Organizers only see
-            <span className="text-blue-600 font-bold px-1">ZK-Proofs</span>
-            of your eligibility, never your full history.
+            Your attendance record is AI-verified and stored on
+            <span className="text-blue-600 font-bold px-1">Filecoin/IPFS</span>
+            with proof committed on the Flow blockchain.
           </p>
         </Card>
       </div>
@@ -207,7 +206,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Event Claim Code</label>
                       <div className="relative">
                         <Input
-                          placeholder="ALEO-2025-XXXX"
+                          placeholder="FLOW-2025-XXXX"
                           value={claimCode}
                           onChange={(e) => setClaimCode(e.target.value.toUpperCase())}
                           className="bg-gray-50 border-gray-200 focus:border-gray-900 rounded-2xl h-14 font-mono text-lg transition-all tracking-wider"
@@ -241,7 +240,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                           </svg>
-                          Validating ZK-Proof...
+                          Verifying on Flow...
                         </span>
                       ) : (
                         <span className="flex items-center gap-2">
@@ -307,7 +306,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
                         </div>
                         <div className="mt-4 pt-4 border-t border-gray-50 flex items-center gap-4">
                           <div className="flex-1 min-w-0">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Aleo TX Hash</p>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Flow TX ID</p>
                             <p className="text-[10px] font-mono text-gray-500 truncate bg-gray-50 p-1.5 rounded-lg">{badge.txHash}</p>
                           </div>
                         </div>
@@ -326,7 +325,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-2xl font-black text-gray-900">Remove Badge?</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-500 font-medium">
-              This will remove the local reference to your badge. The record will remain encrypted on the Aleo blockchain but you won't see it in your dashboard.
+              This will remove the local reference to your badge. The record will remain on the Flow blockchain and Filecoin but you won't see it in your dashboard.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-4 justify-end mt-8">
