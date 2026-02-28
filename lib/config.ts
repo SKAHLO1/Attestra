@@ -1,35 +1,40 @@
 /**
- * Application configuration for Veleo on Aleo
+ * Application configuration for Attestra on Flow Blockchain
  * Reads from environment variables
  */
 
 export const config = {
-  aleo: {
-    // Aleo Testnet Configuration
-    programId: process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || 'velero_attender.aleo',
-    network: process.env.NEXT_PUBLIC_ALEO_NETWORK || 'testnet',
-    apiEndpoint: process.env.NEXT_PUBLIC_ALEO_API_ENDPOINT || 'https://api.explorer.aleo.org/v1',
+  flow: {
+    // Flow Blockchain Configuration
+    contractAddress: process.env.NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS || '0xAttestra',
+    network: process.env.NEXT_PUBLIC_FLOW_NETWORK || 'testnet',
+    accessNode: process.env.NEXT_PUBLIC_FLOW_ACCESS_NODE || 'https://rest-testnet.onflow.org',
+    walletDiscovery: process.env.NEXT_PUBLIC_FLOW_WALLET_DISCOVERY || 'https://fcl-discovery.onflow.org/testnet/authn',
   },
-  ipfs: {
-    gateway: process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs/',
+  filecoin: {
+    gateway: 'https://gateway.lighthouse.storage/ipfs/',
+    lighthouseApiKey: process.env.LIGHTHOUSE_API_KEY || '',
+  },
+  ai: {
+    verificationEndpoint: process.env.NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT || '/api/verify',
   },
 } as const;
 
-export function getProgramId(): string {
-  if (!config.aleo.programId) {
-    console.warn('⚠️ NEXT_PUBLIC_ALEO_PROGRAM_ID not set. Please configure it in .env.local');
+export function getContractAddress(): string {
+  if (!config.flow.contractAddress || config.flow.contractAddress === '0xAttestra') {
+    console.warn('⚠️ NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS not set. Please configure it in .env.local');
   }
-  return config.aleo.programId;
+  return config.flow.contractAddress;
 }
 
 export function isConfigured(): boolean {
-  return !!config.aleo.programId;
+  return !!config.flow.contractAddress && config.flow.contractAddress !== '0xAttestra';
 }
 
 export function getNetwork(): string {
-  return config.aleo.network;
+  return config.flow.network;
 }
 
 export function getApplicationId(): string {
-  return getProgramId();
+  return getContractAddress();
 }

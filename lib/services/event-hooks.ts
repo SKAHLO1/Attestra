@@ -179,28 +179,29 @@ export function useEventOperations() {
             return a & a;
           }, 0);
 
-          // Call claim_badge transition on Aleo (free for attendees - organizer already paid)
-          const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veleo_hero.aleo";
-          
-          // Both Leo and Shield wallets use TransactionOptions via executeTransaction
-          const aleoTransaction = {
-            program: programId,
-            function: "claim_badge",
-            inputs: [
-              `${Math.abs(eventIdHash)}field`, // event_id
-              `${Math.abs(badgeIdHash)}field`, // badge_id
-              `${Date.now()}u64` // timestamp
-            ],
-            fee: 100000,
-            privateFee: false,
-          };
+          // Pin badge metadata to IPFS/Filecoin, then mint on Flow
+          const { pinBadgeMetadata } = await import('@/lib/ipfs/client');
+          const ipfsResult = await pinBadgeMetadata({
+            eventId: claimCodeData.eventId,
+            eventName: eventData?.name || 'Unknown Event',
+            attendeeId: user.uid,
+            claimCode: claimCode,
+            claimedAt: new Date().toISOString(),
+            category: eventData?.category || 'Conference',
+          });
+          console.log('[ClaimBadge] Badge metadata pinned to IPFS, CID:', ipfsResult.cid);
 
-          console.log('[ClaimBadge] Aleo transaction:', aleoTransaction);
-          const txResult = await requestExecution(aleoTransaction);
-          aleoTxId = txResult?.transactionId || txResult;
-          console.log('[ClaimBadge] Badge minted on Aleo! TX:', aleoTxId);
-        } catch (aleoError: any) {
-          console.error('[ClaimBadge] Aleo minting failed:', aleoError);
+          const { getFlowClient } = await import('@/lib/flow/client');
+          const flowClient = getFlowClient();
+          const flowTx = await flowClient.claimBadge(
+            claimCodeData.eventId,
+            claimCode,
+            ipfsResult.cid
+          );
+          aleoTxId = flowTx.transactionId;
+          console.log('[ClaimBadge] Badge minted on Flow! TX:', aleoTxId);
+        } catch (flowError: any) {
+          console.error('[ClaimBadge] Flow minting failed (non-fatal):', flowError);
           // Continue with Firebase record even if blockchain mint fails
         }
       }
@@ -215,7 +216,7 @@ export function useEventOperations() {
         claimCode: claimCode,
         claimed: true,
         claimedAt: serverTimestamp(),
-        aleoTxId: aleoTxId,
+        flowTxId: aleoTxId,
         issuedAt: serverTimestamp(),
       });
 

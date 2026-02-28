@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEventOperations, useEventInfo } from "@/lib/services"
 import { EventCategory } from "@/lib/services/types"
-import { useWallet } from "@provablehq/aleo-wallet-adaptor-react"
+import { useFlowWallet } from "@/lib/flow/hooks"
+import { getFlowClient } from "@/lib/flow/client"
 import { ShieldCheck, UserCheck } from "lucide-react"
 
 interface EventFormProps {
@@ -17,13 +18,12 @@ interface EventFormProps {
   onSuccess?: () => void
 }
 
-const EVENT_CREATION_FEE = 0.1 // 0.1 LEO
+const EVENT_CREATION_FEE = 0.001 // 0.001 FLOW
 
 export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
   const { createEvent, loading: creating, error: createError } = useEventOperations()
   const { events: allEvents } = useEventInfo()
-  const { wallet, address } = useWallet()
-  const requestTransaction = (wallet?.adapter as any)?.requestTransaction
+  const { address } = useFlowWallet()
 
   const [formData, setFormData] = useState({
     name: "",
@@ -53,42 +53,34 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
     setSuccessMessage("")
 
     try {
-      // Call Aleo smart contract to create event
-      console.log(`[EventForm] Creating event on Aleo blockchain...`)
+      // Call Flow smart contract to create event
+      console.log(`[EventForm] Creating event on Flow blockchain...`)
 
-      if (requestTransaction && address) {
+      if (address) {
         try {
-          // Generate event ID from event name and timestamp
-          const eventIdHash = `${Date.now()}${formData.name}`.split('').reduce((acc, char) => {
-            return ((acc << 5) - acc) + char.charCodeAt(0);
-          }, 0);
+          const { pinEventMetadata } = await import('@/lib/ipfs/client');
+          const ipfsResult = await pinEventMetadata({
+            name: formData.name,
+            description: formData.description,
+            location: formData.location,
+            startDate: formData.startDate || new Date().toISOString(),
+            endDate: formData.endDate || new Date().toISOString(),
+            category: formData.category,
+            organizerId: address,
+            maxAttendees: formData.maxAttendees,
+            imageUrl: formData.imageUrl,
+            createdAt: new Date().toISOString(),
+          });
+          console.log('[EventForm] Event metadata pinned to IPFS/Filecoin, CID:', ipfsResult.cid);
 
-          // Call veleo_hero.aleo create_event function
-          const programId = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID || "veleo_hero.aleo";
-          const aleoTransaction = {
-            address: address,
-            chainId: "testnetbeta",
-            transitions: [{
-              program: programId,
-              functionName: "create_event",
-              inputs: [
-                `${Math.abs(eventIdHash)}field`,
-                `${formData.maxAttendees || 100}u64`
-              ]
-            }],
-            fee: 1000000, // 1.0 credits
-            feePrivate: false,
-          };
+          const flowClient = getFlowClient();
+          const eventId = `${Date.now()}-${formData.name.toLowerCase().replace(/\s+/g, '-')}`;
+          const txResult = await flowClient.createEvent(eventId, formData.maxAttendees, ipfsResult.cid);
+          console.log('[EventForm] Event created on Flow! TX:', txResult.transactionId);
 
-          console.log('[EventForm] Submitting transaction:', JSON.stringify(aleoTransaction, null, 2));
-          const txId = await requestTransaction(aleoTransaction);
-          console.log('[EventForm] Event created on-chain! Transaction ID:', txId);
-
-          // Wait for transaction confirmation
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (txError: any) {
-          console.error('[EventForm] Blockchain transaction failed:', txError);
-          throw new Error(`Blockchain transaction failed: ${txError.message}`);
+          console.error('[EventForm] Flow transaction failed (non-fatal):', txError);
         }
       }
 
@@ -113,7 +105,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
 
       const eventId = await createEvent(eventData)
 
-      setSuccessMessage(`Event created successfully! Fee: ${EVENT_CREATION_FEE} LEO`)
+      setSuccessMessage(`Event created successfully! Fee: ${EVENT_CREATION_FEE} FLOW`)
       onSubmit(formData)
       setFormData({
         name: "",
@@ -139,7 +131,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
     <Card className="border border-gray-200 bg-white shadow-xl rounded-3xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       <CardHeader className="bg-gray-50 border-b border-gray-100 pb-8">
         <CardTitle className="text-2xl font-bold text-gray-900">Create New Event</CardTitle>
-        <CardDescription className="text-gray-500">Deploy a private event on Aleo and issue ZK-badges</CardDescription>
+        <CardDescription className="text-gray-500">Deploy an event on Flow blockchain with Filecoin media storage and AI verification</CardDescription>
       </CardHeader>
       <CardContent className="pt-8 px-8">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -152,7 +144,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase ml-1">Event Name *</label>
                 <Input
-                  placeholder="e.g., Aleo Hackathon 2025"
+                  placeholder="e.g., Flow Hackathon 2025"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="bg-gray-50 border-gray-200 focus:border-gray-900 rounded-xl h-11"
@@ -315,12 +307,12 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Initializing ZK-Event...
+                  Deploying on Flow...
                 </span>
               ) : "Create Gated Event"}
             </Button>
             <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-tight mt-4">
-              Estimated Deployment Fee: <span className="text-gray-900">{EVENT_CREATION_FEE} LEO</span>
+              Estimated Deployment Fee: <span className="text-gray-900">{EVENT_CREATION_FEE} FLOW</span>
             </p>
           </div>
         </form>

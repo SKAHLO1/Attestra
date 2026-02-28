@@ -139,7 +139,7 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
                     <DialogTitle className="text-2xl font-black uppercase text-gray-900">QR Console</DialogTitle>
                     <DialogDescription className="font-medium text-gray-500">Generate and manage claim codes for {event.name}</DialogDescription>
                   </DialogHeader>
-                  <QRCodeGenerator eventId={event.id} eventName={event.name} issuer="Veleo Organizer" />
+                  <QRCodeGenerator eventId={event.id} eventName={event.name} issuer="Attestra Organizer" />
                 </DialogContent>
               </Dialog>
 

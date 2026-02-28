@@ -13,8 +13,9 @@ export interface Badge {
   claimCode: string;
   claimed: boolean;
   claimedAt?: Date;
-  aleoTxId?: string;
-  aleoRecordId?: string;
+  flowTxId?: string;
+  ipfsCid?: string;
+  aiVerified?: boolean;
   issuedAt: Date;
   category: string;
   owner: string;
@@ -52,8 +53,9 @@ export function useUserBadges() {
           claimCode: data.claimCode || '',
           claimed: data.claimed || false,
           claimedAt: data.claimedAt?.toDate(),
-          aleoTxId: data.aleoTxId,
-          aleoRecordId: data.aleoRecordId,
+          flowTxId: data.flowTxId,
+          ipfsCid: data.ipfsCid,
+          aiVerified: data.aiVerified,
           issuedAt: data.issuedAt?.toDate() || new Date(),
           category: data.category || 'Conference',
           owner: data.owner || user.uid,
