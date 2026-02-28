@@ -43,3 +43,7 @@ next-env.d.ts
 
 firestore.rules
 aleo_docs.md
+# flow
+emulator-account.pkey
+imports
+.env
