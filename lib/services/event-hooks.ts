@@ -4,6 +4,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -136,18 +137,30 @@ export function useEventOperations() {
       const claimCodeData = claimCodeDoc.data();
 
       // Get event details for badge metadata and eligibility checks
-      const eventDoc = await getDocs(query(collection(db, 'events'), where('__name__', '==', claimCodeData.eventId)));
-      const eventData = eventDoc.docs[0]?.data();
+      const eventDocRef = doc(db, 'events', claimCodeData.eventId);
+      const eventDocSnap = await getDoc(eventDocRef);
 
-      if (!eventData) throw new Error('Event data not found');
+      if (!eventDocSnap.exists()) throw new Error('Event data not found');
+      const eventData = eventDocSnap.data();
 
       // --- ZK-ELIGIBILITY CHECKS ---
 
       // 1. Check Prerequisite Event
-      if (eventData.prerequisiteEventId) {
-        const hasPrerequisite = userBadges.some(badge => badge.eventId === eventData.prerequisiteEventId);
+      const prereqId = eventData.prerequisiteEventId;
+      if (prereqId && prereqId !== 'none') {
+        const hasPrerequisite = userBadges.some(
+          (badge: any) => badge.eventId === prereqId
+        );
         if (!hasPrerequisite) {
-          throw new Error(`Prerequisite Required: You must own a badge from "${eventData.prerequisiteEventId}" to claim this.`);
+          // Fetch the prerequisite event name for a readable error message
+          let prereqName = prereqId;
+          try {
+            const prereqSnap = await getDoc(doc(db, 'events', prereqId));
+            if (prereqSnap.exists()) prereqName = prereqSnap.data().name || prereqId;
+          } catch (_) { /* non-fatal — fall back to ID */ }
+          throw new Error(
+            `Eligibility Required: You must hold a badge from "${prereqName}" to claim this badge.`
+          );
         }
       }
 
@@ -155,7 +168,11 @@ export function useEventOperations() {
       if (eventData.minReputationLevel && eventData.minReputationLevel > 0) {
         const totalBadges = userBadges.length;
         if (totalBadges < eventData.minReputationLevel) {
-          throw new Error(`Reputation Too Low: This event requires minimum reputation level ${eventData.minReputationLevel} (${eventData.minReputationLevel}+ total badges).`);
+          const levelLabels: Record<number, string> = { 1: 'Initiate', 3: 'Voyager', 5: 'Visionary' };
+          const label = levelLabels[eventData.minReputationLevel] ?? `Level ${eventData.minReputationLevel}`;
+          throw new Error(
+            `Reputation Too Low: This event requires ${label} status (${eventData.minReputationLevel}+ badges). You have ${totalBadges}.`
+          );
         }
       }
 

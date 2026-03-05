@@ -42,6 +42,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
+  const [errorMessage, setErrorMessage] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,14 +60,21 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
 
     setIsSubmitting(true)
     setSuccessMessage("")
+    setErrorMessage("")
 
     try {
       // Step 1: Build the Firebase event payload
+      const startDate = formData.startDate ? new Date(formData.startDate) : new Date();
+      const endDate = formData.endDate ? new Date(formData.endDate) : new Date(Date.now() + 2 * 60 * 60 * 1000); // +2h default
+      if (isNaN(startDate.getTime())) throw new Error('Invalid start date — please select a valid date.');
+      if (isNaN(endDate.getTime())) throw new Error('Invalid end date — please select a valid date.');
+      if (endDate < startDate) throw new Error('End date must be after start date.');
+
       const eventData: any = {
         name: formData.name,
         description: formData.description,
-        startDate: new Date(formData.startDate || Date.now()),
-        endDate: new Date(formData.endDate || Date.now()),
+        startDate,
+        endDate,
         location: formData.location,
         category: formData.category,
         imageUrl: formData.imageUrl,
@@ -157,6 +165,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
       onSuccess?.()
     } catch (error: any) {
       console.error("Failed to create event:", error)
+      setErrorMessage(error.message || 'Failed to create event. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -325,9 +334,12 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
               </div>
             )}
 
-            {createError && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl mb-6">
-                <p className="text-sm text-red-600 font-bold">Error: {createError}</p>
+            {(errorMessage || createError) && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl mb-6 flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-white text-xs font-black">!</span>
+                </div>
+                <p className="text-sm text-red-700 font-bold">{errorMessage || createError}</p>
               </div>
             )}
 
