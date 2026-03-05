@@ -10,7 +10,7 @@ const tiers = [
     icon: Sparkles,
     price: "$0",
     period: "forever",
-    description: "Perfect for trying out Veleo or running a single event.",
+    description: "Perfect for trying out Attestra or running a single event.",
     badge: null,
     cta: "Get Started Free",
     ctaVariant: "outline" as const,
@@ -21,7 +21,7 @@ const tiers = [
       "Basic analytics dashboard",
       "QR code generation",
       "Firebase badge storage",
-      "Aleo testnet transactions",
+      "Flow testnet transactions",
       "Community support",
     ],
     missing: [
@@ -46,7 +46,7 @@ const tiers = [
       "Advanced analytics & insights",
       "QR code generation & bulk export",
       "Firebase badge storage",
-      "Aleo testnet transactions",
+      "Flow testnet transactions",
       "Priority email support",
       "Gated events (prerequisite badges)",
       "Reputation scoring",
@@ -72,7 +72,7 @@ const tiers = [
       "Advanced analytics & custom reports",
       "QR code generation & bulk export",
       "Firebase badge storage",
-      "Aleo mainnet & testnet support",
+      "Flow mainnet & testnet support",
       "Dedicated account manager",
       "Custom smart contract integrations",
       "SLA guarantee",
@@ -101,7 +101,7 @@ export default function Pricing({ onGetStarted }: PricingProps) {
             Simple, transparent pricing
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Start free and scale as you grow. Every plan includes Aleo zero-knowledge proof transactions and Firebase-backed badge storage.
+            Start free and scale as you grow. Every plan includes Flow blockchain transactions and Filecoin-backed badge storage.
           </p>
         </div>
 
@@ -208,7 +208,7 @@ export default function Pricing({ onGetStarted }: PricingProps) {
 
         {/* Footer note */}
         <p className="text-center text-sm text-gray-500 mt-10">
-          All plans include Aleo ZK-proof transactions on testnet. Badge creation fees (0.1 LEO/code) apply on-chain regardless of plan.
+          All plans include Flow blockchain transactions on testnet. Badge redemption fees (3 FLOW/badge) apply on-chain regardless of plan.
         </p>
       </div>
     </section>
