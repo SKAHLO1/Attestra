@@ -116,7 +116,11 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
         });
         if (!pinRes.ok) throw new Error(await pinRes.text());
         const ipfsResult = await pinRes.json();
-        console.log('[EventForm] Event metadata pinned to Filecoin, CID:', ipfsResult.cid);
+        if (ipfsResult.pending) {
+          console.warn('[EventForm] Filecoin unavailable — proceeding without CID');
+        } else {
+          console.log('[EventForm] Event metadata pinned to Filecoin, CID:', ipfsResult.cid);
+        }
 
         // Ensure FCL wallet is authenticated so the popup fires
         const currentUser = await fcl.currentUser.snapshot();
@@ -135,7 +139,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
         }
 
         // Pass the Firebase doc ID as the Flow eventId — single source of truth
-        const txResult = await flowClient.createEvent(eventId, formData.maxAttendees, ipfsResult.cid);
+        const txResult = await flowClient.createEvent(eventId, formData.maxAttendees, ipfsResult.cid ?? '');
         console.log('[EventForm] Event registered on Flow chain! TX:', txResult.transactionId);
 
         // Write flowTxId back to the Firebase doc so chain ↔ DB are permanently linked

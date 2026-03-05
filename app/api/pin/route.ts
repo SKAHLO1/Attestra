@@ -31,6 +31,21 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
+    const causeCode = error?.cause?.code ?? '';
+    const msg = error?.message ?? '';
+    const isNetworkError =
+      causeCode === 'UND_ERR_CONNECT_TIMEOUT' ||
+      causeCode === 'ECONNREFUSED' ||
+      causeCode === 'ENOTFOUND' ||
+      msg.includes('fetch failed') ||
+      msg.includes('Connect Timeout') ||
+      msg.includes('network');
+
+    if (isNetworkError) {
+      console.warn('[/api/pin] Lighthouse unreachable — returning pending stub:', msg);
+      return NextResponse.json({ cid: null, url: null, size: 0, name: '', pending: true });
+    }
+
     console.error('[/api/pin] Error:', error);
     return NextResponse.json({ error: error.message || 'Failed to pin to Filecoin' }, { status: 500 });
   }
