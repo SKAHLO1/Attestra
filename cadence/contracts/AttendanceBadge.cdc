@@ -34,20 +34,28 @@ access(all) contract AttendanceBadge {
     access(all) struct EventRecord {
         access(all) let eventId: String
         access(all) let organizer: Address
-        access(all) var maxAttendees: UInt64
-        access(all) var totalMinted: UInt64
-        access(all) var isActive: Bool
+        access(all) let maxAttendees: UInt64
+        access(all) let totalMinted: UInt64
+        access(all) let isActive: Bool
         access(all) let filecoinCid: String
         access(all) let createdAt: UFix64
 
-        init(eventId: String, organizer: Address, maxAttendees: UInt64, filecoinCid: String) {
+        init(
+            eventId: String,
+            organizer: Address,
+            maxAttendees: UInt64,
+            totalMinted: UInt64,
+            isActive: Bool,
+            filecoinCid: String,
+            createdAt: UFix64
+        ) {
             self.eventId = eventId
             self.organizer = organizer
             self.maxAttendees = maxAttendees
-            self.totalMinted = 0
-            self.isActive = true
+            self.totalMinted = totalMinted
+            self.isActive = isActive
             self.filecoinCid = filecoinCid
-            self.createdAt = getCurrentBlock().timestamp
+            self.createdAt = createdAt
         }
     }
 
@@ -152,10 +160,13 @@ access(all) contract AttendanceBadge {
             eventId: eventId,
             organizer: organizer,
             maxAttendees: maxAttendees,
-            filecoinCid: filecoinCid
+            totalMinted: 0,
+            isActive: true,
+            filecoinCid: filecoinCid,
+            createdAt: getCurrentBlock().timestamp
         )
         self.events[eventId] = record
-        self.totalEvents = self.totalEvents + 1
+        self.totalEvents = self.totalEvents + UInt64(1)
 
         emit EventCreated(eventId: eventId, organizer: organizer, filecoinCid: filecoinCid)
     }
@@ -172,7 +183,7 @@ access(all) contract AttendanceBadge {
             self.events[eventId]!.totalMinted < self.events[eventId]!.maxAttendees: "Max attendees reached"
         }
 
-        let badgeId = self.totalBadges + 1
+        let badgeId = self.totalBadges + UInt64(1)
         let eventRecord = self.events[eventId]!
 
         let badge <- create NFT(
@@ -184,7 +195,15 @@ access(all) contract AttendanceBadge {
             aiVerificationCid: aiVerificationCid
         )
 
-        self.events[eventId]!.totalMinted = eventRecord.totalMinted + 1
+        self.events[eventId] = EventRecord(
+            eventId: eventRecord.eventId,
+            organizer: eventRecord.organizer,
+            maxAttendees: eventRecord.maxAttendees,
+            totalMinted: eventRecord.totalMinted + UInt64(1),
+            isActive: eventRecord.isActive,
+            filecoinCid: eventRecord.filecoinCid,
+            createdAt: eventRecord.createdAt
+        )
         self.totalBadges = badgeId
 
         emit BadgeMinted(eventId: eventId, recipient: recipient, badgeId: badgeId, filecoinCid: filecoinCid)

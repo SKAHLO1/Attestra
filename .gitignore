@@ -47,3 +47,4 @@ aleo_docs.md
 emulator-account.pkey
 imports
 .env
+testnet-account.pkey

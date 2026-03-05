@@ -196,16 +196,95 @@ export async function fetchFromFilecoin<T = unknown>(cid: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+// ─── CSV helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Upload a CSV string to Filecoin via Lighthouse.
+ * Uses uploadText under the hood — CSV is plain text with a .csv extension.
+ */
+export async function uploadCSVToFilecoin(
+  csvContent: string,
+  name: string
+): Promise<FilecoinUploadResult> {
+  requireApiKey();
+
+  const response = await lighthouse.uploadText(
+    csvContent,
+    LIGHTHOUSE_API_KEY,
+    name
+  );
+
+  const cid: string = response.data.Hash;
+  return {
+    cid,
+    url: `${FILECOIN_GATEWAY}${cid}`,
+    size: Number(response.data.Size),
+    name: response.data.Name,
+  };
+}
+
 // ─── Domain helpers ───────────────────────────────────────────────────────────
 
-export async function pinEventMetadata(metadata: EventMetadata): Promise<FilecoinUploadResult> {
-  return uploadJSONToFilecoin(metadata, `attestra-event-${metadata.name}`);
+export async function pinEventMetadata(
+  metadata: EventMetadata,
+  eventId: string
+): Promise<FilecoinUploadResult> {
+  const slug = metadata.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return uploadJSONToFilecoin(metadata, `attestra/${eventId}/event-metadata--${slug}.json`);
 }
 
 export async function pinBadgeMetadata(metadata: BadgeMetadata): Promise<FilecoinUploadResult> {
-  return uploadJSONToFilecoin(
-    metadata,
-    `attestra-badge-${metadata.eventId}-${metadata.attendeeId}`
+  const headers = 'event_id,event_name,attendee_id,claim_code,claimed_at,category,flow_tx_id,ai_verified';
+  const escape = (v: string | boolean | undefined) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const row = [
+    escape(metadata.eventId),
+    escape(metadata.eventName),
+    escape(metadata.attendeeId),
+    escape(metadata.claimCode),
+    escape(metadata.claimedAt),
+    escape(metadata.category),
+    escape(metadata.flowTxId),
+    escape(metadata.aiVerified),
+  ].join(',');
+  const csv = `${headers}\n${row}`;
+  return uploadCSVToFilecoin(
+    csv,
+    `attestra/${metadata.eventId}/badges/${metadata.claimCode}.csv`
+  );
+}
+
+export interface QRCodeManifestRow {
+  claimCode: string;
+  qrUrl: string;
+  eventId: string;
+  eventName: string;
+  expiresAt: string;
+  issuer: string;
+}
+
+export async function pinQRCodeManifest(
+  rows: QRCodeManifestRow[],
+  eventId: string,
+  eventName: string
+): Promise<FilecoinUploadResult> {
+  const headers = 'claim_code,qr_url,event_id,event_name,expires_at,issuer';
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const csvRows = rows.map(r =>
+    [
+      escape(r.claimCode),
+      escape(r.qrUrl),
+      escape(r.eventId),
+      escape(r.eventName),
+      escape(r.expiresAt),
+      escape(r.issuer),
+    ].join(',')
+  );
+  const csv = [headers, ...csvRows].join('\n');
+  const slug = eventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return uploadCSVToFilecoin(
+    csv,
+    `attestra/${eventId}/qr-codes/batch-${timestamp}--${slug}.csv`
   );
 }
 
@@ -214,6 +293,33 @@ export async function pinAIVerificationArtifact(
 ): Promise<FilecoinUploadResult> {
   return uploadJSONToFilecoin(
     artifact,
-    `attestra-ai-verification-${artifact.eventId}`
+    `attestra/${artifact.eventId}/ai-verification.json`
   );
+}
+
+export async function pinQRCode(
+  qrImageUrl: string,
+  claimCode: string,
+  eventId: string
+): Promise<FilecoinUploadResult> {
+  requireApiKey();
+
+  const response = await fetch(qrImageUrl);
+  if (!response.ok) {
+    throw new Error(`[Filecoin] Failed to fetch QR image: ${response.statusText}`);
+  }
+  const blob = await response.blob();
+
+  // Wrap as a named File so Lighthouse records the filename in the dashboard
+  const filename = `attestra/${eventId}/qr-codes/${claimCode}.png`;
+  const namedFile = new File([blob], filename, { type: 'image/png' });
+
+  const upload = await lighthouse.uploadBuffer(namedFile as any, LIGHTHOUSE_API_KEY);
+  const cid: string = upload.data.Hash;
+  return {
+    cid,
+    url: `${FILECOIN_GATEWAY}${cid}`,
+    size: Number(upload.data.Size),
+    name: filename,
+  };
 }

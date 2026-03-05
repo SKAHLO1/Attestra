@@ -26,13 +26,13 @@ interface QRCodeGeneratorProps {
   issuer: string
 }
 
-const BADGE_CREATION_FEE = 0.001 // 0.001 FLOW per badge
+const BADGE_REDEMPTION_FEE = 3 // 3 FLOW per redemption, paid by attendee
 
 export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGeneratorProps) {
   const applicationId = getApplicationId()
   const { addClaimCodes, loading: operationLoading } = useEventOperations()
   const { address } = useFlowWallet()
-  const [generatedCodes, setGeneratedCodes] = useState<Array<{ code: string; qrUrl: string }>>([])
+  const [generatedCodes, setGeneratedCodes] = useState<Array<{ code: string; qrUrl: string; filecoinCid?: string; filecoinUrl?: string }>>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -48,10 +48,9 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
     setSuccessMessage(null)
 
     try {
-      const totalFee = BADGE_CREATION_FEE * count
-      console.log(`[QRCodeGenerator] Generating ${count} claim codes on Flow for ${address}...`)
+      console.log(`[QRCodeGenerator] Generating ${count} claim codes for ${address}...`)
 
-      // Generate claim codes and QR codes
+      // Generate claim codes and QR image URLs
       const newCodes = Array.from({ length: count }, (_, i) => {
         const claimCode = generateClaimCode(eventId, i + generatedCodes.length)
         const qrData: QRCodeData = {
@@ -63,20 +62,56 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
         }
         const encoded = encodeQRData(qrData)
         const qrUrl = generateQRCodeURL(encoded)
-
-        return {
-          code: claimCode,
-          qrUrl,
-        }
+        return { code: claimCode, qrUrl }
       })
 
-      // Register claim codes in Firebase
-      console.log('[QRCodeGenerator] Registering claim codes in Firebase...')
-      const claimCodesOnly = newCodes.map(c => c.code)
-      await addClaimCodes(eventId, claimCodesOnly)
+      // Pin a single CSV manifest for the whole batch to Filecoin
+      console.log('[QRCodeGenerator] Pinning QR code CSV manifest to Filecoin...')
+      let manifestCid: string | undefined
+      let manifestUrl: string | undefined
+      try {
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        const manifestRes = await fetch('/api/pin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'qr-manifest',
+            data: {
+              eventId,
+              eventName,
+              rows: newCodes.map(item => ({
+                claimCode: item.code,
+                qrUrl: item.qrUrl,
+                eventId,
+                eventName,
+                expiresAt,
+                issuer,
+              })),
+            },
+          }),
+        })
+        if (!manifestRes.ok) throw new Error(await manifestRes.text())
+        const manifestResult = await manifestRes.json()
+        manifestCid = manifestResult.cid as string
+        manifestUrl = manifestResult.url as string
+        console.log(`[QRCodeGenerator] CSV manifest pinned → CID: ${manifestCid}`)
+      } catch (pinErr: any) {
+        console.error('[QRCodeGenerator] Failed to pin CSV manifest:', pinErr)
+      }
 
-      setGeneratedCodes([...generatedCodes, ...newCodes])
-      setSuccessMessage(`Successfully generated ${count} claim codes! Estimated fee: ${totalFee} FLOW. Badges will be minted on Flow when attendees claim them (free for attendees).`)
+      // All codes in this batch share the same manifest CID
+      const pinnedCodes = newCodes.map(item => ({
+        ...item,
+        filecoinCid: manifestCid,
+        filecoinUrl: manifestUrl,
+      }))
+
+      // Register claim codes in Firebase — all point to the same manifest CSV
+      console.log('[QRCodeGenerator] Registering claim codes in Firebase...')
+      await addClaimCodes(eventId, pinnedCodes.map(c => c.code), pinnedCodes.map(c => c.filecoinCid))
+
+      setGeneratedCodes([...generatedCodes, ...pinnedCodes])
+      setSuccessMessage(`Generated ${count} claim codes! CSV manifest pinned to Filecoin. Free for organizer — attendees pay ${BADGE_REDEMPTION_FEE} FLOW to redeem.`)
     } catch (err: any) {
       setError(err.message || 'Failed to generate and register claim codes')
       console.error('[QRCodeGenerator] Error:', err)
@@ -203,8 +238,8 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>💡 Claim codes are stored in Firebase - badges mint on Flow when attendees claim</p>
-          <p>💰 Fee: {BADGE_CREATION_FEE} FLOW per badge code</p>
-          <p>🎁 Badge claiming is FREE for attendees!</p>
+          <p>🎁 QR code generation is FREE for organizers</p>
+          <p>💰 Attendees pay {BADGE_REDEMPTION_FEE} FLOW to redeem a badge</p>
           <p>🏷️ Metadata pinned to Filecoin/IPFS for permanent storage</p>
         </div>
 
