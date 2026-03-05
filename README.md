@@ -1,663 +1,547 @@
-# Veleo 🔐
+# Attestra 🔐
 
-![Veleo Banner](https://img.shields.io/badge/Veleo-Attendance-blueviolet?style=for-the-badge)
+![Attestra Banner](https://img.shields.io/badge/Attestra-Proof%20of%20Attendance-blueviolet?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.1-06B6D4?style=for-the-badge&logo=tailwindcss)
-![Aleo](https://img.shields.io/badge/Aleo-Testnet%20Beta-green?style=for-the-badge)
+![Flow](https://img.shields.io/badge/Flow-Testnet-00EF8B?style=for-the-badge)
 ![Firebase](https://img.shields.io/badge/Firebase-10.7-orange?style=for-the-badge&logo=firebase)
+![Filecoin](https://img.shields.io/badge/Filecoin-Lighthouse-0090FF?style=for-the-badge)
+![Gemini](https://img.shields.io/badge/Gemini-Flash%202.0-4285F4?style=for-the-badge&logo=google)
 
-**Veleo** is a decentralized proof-of-attendance protocol built on the [Aleo](https://aleo.org) blockchain using zero-knowledge proofs. The application enables event organizers to create on-chain events and issue verifiable attendance badges, while attendees can claim badges through QR codes or claim codes and showcase them in a digital portfolio. All blockchain transactions are executed on Aleo's testnet beta network with privacy-preserving zero-knowledge technology.
+**Attestra** is a decentralized proof-of-attendance protocol built on the [Flow](https://flow.com) blockchain with AI-powered attendance verification. Event organizers create on-chain events, generate QR code claim codes, and run Gemini AI verification on event photos. Attendees claim verifiable badges secured by Flow Cadence smart contracts, with metadata pinned to Filecoin via Lighthouse for permanent decentralized storage. Gated events enforce ZK-style eligibility rules — requiring attendees to hold a badge from a prerequisite event or meet a minimum reputation level before claiming.
+
+---
 
 ## ✨ Features
 
 ### For Event Organizers
-- 🎪 **Create Events On-Chain** - Deploy events directly to Aleo blockchain with `create_event` transition
-- 🏷️ **Generate Claim Codes** - Create unique claim codes stored in Firebase for badge distribution
-- 📊 **Dashboard Analytics** - Track events, claim codes generated, and badge claims
-- ⛓️ **Blockchain Integration** - All events are recorded on Aleo testnet beta via smart contract
+- **Create Events On-Chain** — Deploy events to Flow testnet via the `AttendanceBadge` Cadence contract (100 FLOW fee)
+- **ZK-Gated Events** — Require attendees to hold a prerequisite badge or reach a minimum reputation level (1/3/5 badges)
+- **QR Code Generation** — Bulk-generate unique claim codes and download QR code batches; a CSV manifest is pinned to Filecoin per batch
+- **AI Verification** — Run Gemini Flash 2.0 vision analysis on event photos; the proof hash is signed by an oracle account and committed on-chain
+- **Organizer Dashboard** — View all events, live badge counts, active/inactive status toggle, and attendee list per event
+- **Filecoin Metadata** — Event metadata pinned to Filecoin via Lighthouse using path-style naming: `attestra/{eventId}/event-metadata--{slug}.json`
 
 ### For Attendees
-- 📱 **QR Code Scanning** - Scan QR codes to claim badges instantly
-- ⌨️ **Manual Claiming** - Enter claim codes to mint badges on-chain via `claim_badge` transition
-- 🎨 **Badge Portfolio** - View all claimed badges with event details and timestamps
-- ⛓️ **On-Chain Minting** - Badges are minted on Aleo blockchain when claimed (not pre-minted)
-- 🔍 **Firebase + Blockchain** - Metadata stored in Firebase, ownership verified on-chain
+- **Manual Badge Claiming** — Enter a claim code to mint a badge on Flow testnet (3 FLOW fee)
+- **QR Code Scanning** — Scan QR codes at events to auto-fill the claim code
+- **Eligibility Enforcement** — Clear error messages when prerequisite badge or reputation level requirements are not met
+- **Badge Portfolio** — View all claimed badges with Flow TX IDs, Filecoin CIDs, and claim timestamps
+- **On-Chain Reputation** — Reputation level (Beginner → Initiate → Voyager → Visionary) based on total badges held
 
-### General Features
-- 🌓 **Dark/Light Mode** - Full theme support with smooth transitions
-- 💼 **Aleo Wallet Adapter** - Universal wallet support (Leo Wallet, Puzzle Wallet) via @demox-labs/aleo-wallet-adapter
-- 🔐 **Firebase Authentication** - Secure user authentication and session management
-- 🔄 **Hybrid Storage** - Firebase for metadata, Aleo blockchain for ownership verification
-- 📱 **Responsive Design** - Optimized for desktop and mobile devices
-- 🛡️ **Zero-Knowledge Proofs** - Privacy-preserving transactions on Aleo testnet beta
+### Platform Features
+- **Firebase Authentication** — Email/password sign-in with role separation (organizer vs. attendee)
+- **Hybrid Storage** — Firebase Firestore for mutable metadata, Flow blockchain for ownership, Filecoin for permanent artifact storage
+- **Responsive Design** — Fully optimized for desktop and mobile
+- **Graceful Degradation** — Filecoin pinning failures return a pending stub so Flow transactions always proceed
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Next.js 15 App                           │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │  Organizer   │  │  Attendee    │  │  Landing / Pricing / │  │
+│  │  Dashboard   │  │   Portal     │  │  Onboarding          │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────────────────────┘  │
+│         │                 │                                      │
+│  ┌──────▼─────────────────▼─────────────────────────────────┐   │
+│  │           lib/services  (React hooks)                    │   │
+│  │  useEventOperations · useEventInfo · useUserBadges       │   │
+│  └──────┬──────────────────────┬───────────────────────────-┘   │
+│         │                      │                                 │
+│  ┌──────▼──────┐    ┌──────────▼────────────────────────────┐   │
+│  │  Firebase   │    │           API Routes                  │   │
+│  │  Firestore  │    │  POST /api/pin   POST /api/verify     │   │
+│  │  Auth       │    └──────────┬──────────────┬────────────-┘   │
+│  └─────────────┘               │              │                  │
+│                     ┌──────────▼──┐  ┌────────▼─────────────┐   │
+│                     │  Lighthouse  │  │  Gemini Flash 2.0    │   │
+│                     │  (Filecoin)  │  │  AI Verification     │   │
+│                     └─────────────┘  └──────────┬───────────┘   │
+│                                                 │                │
+│                     ┌───────────────────────────▼─────────────┐ │
+│                     │    Flow Blockchain (Testnet)             │ │
+│                     │    AttendanceBadge.cdc contract          │ │
+│                     │    FCL wallet · Oracle signer            │ │
+│                     └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow — Event Creation
+1. Organizer fills the event form (name, dates, ZK-eligibility rules)
+2. Firebase doc created first → its ID becomes the canonical `eventId`
+3. Event metadata pinned to Filecoin → CID returned
+4. FCL wallet popup → organizer pays 100 FLOW → `createEvent` transaction sealed on Flow
+5. Firebase doc updated with `flowTxId`; Firebase doc rolled back if Flow tx fails
+
+### Data Flow — Badge Claiming
+1. Attendee enters claim code → Firestore validates code is unused
+2. ZK eligibility checks: prerequisite badge ownership + reputation level
+3. Badge metadata pinned to Filecoin as CSV (non-fatal if Lighthouse unreachable)
+4. FCL wallet popup → attendee pays 3 FLOW → `claimBadge` transaction sealed on Flow
+5. Firebase badge record written only after successful on-chain tx
+
+### Data Flow — AI Verification
+1. Organizer triggers "AI Verify" from the event dashboard, provides photo URLs
+2. `/api/verify` fetches each image, encodes to base64, sends to Gemini Flash 2.0
+3. AI returns attendance confidence score
+4. Result hashed with SHA-256 → `proofHash`
+5. Verification artifact pinned to Filecoin: `attestra/{eventId}/ai-verification.json`
+6. Oracle account (server-side P-256 key) signs and submits `submitAIVerification` tx on Flow
+
+---
 
 ## 🚀 Tech Stack
 
-### Frontend
-- **Framework**: [Next.js 15.5](https://nextjs.org/) with App Router and Turbopack
-- **Language**: [TypeScript 5](https://www.typescriptlang.org/)
-- **Styling**: [TailwindCSS 4](https://tailwindcss.com/)
-- **UI Components**: [Radix UI](https://www.radix-ui.com/) + [shadcn/ui](https://ui.shadcn.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Theme**: [next-themes](https://github.com/pacocoursey/next-themes)
+| Layer | Technology |
+|---|---|
+| Framework | [Next.js 15.5](https://nextjs.org/) — App Router |
+| Language | [TypeScript 5](https://www.typescriptlang.org/) |
+| Styling | [TailwindCSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
+| Blockchain | [Flow Testnet](https://flow.com) — Cadence 1.0 |
+| Wallet | [Flow Client Library (FCL)](https://developers.flow.com/tools/clients/fcl-js) + WalletConnect |
+| Smart Contract | `AttendanceBadge.cdc` — Cadence 1.0 |
+| Database | [Firebase Firestore](https://firebase.google.com/docs/firestore) |
+| Auth | [Firebase Authentication](https://firebase.google.com/docs/auth) |
+| Decentralized Storage | [Lighthouse](https://lighthouse.storage) (Filecoin) |
+| AI Verification | [Gemini Flash 2.0](https://ai.google.dev/) (`gemini-2.0-flash`) |
+| Icons | [Lucide React](https://lucide.dev/) |
+| Deployment | [Vercel](https://vercel.com) |
 
-### Blockchain
-- **Network**: [Aleo Testnet Beta](https://aleo.org)
-- **Smart Contract**: [Leo Programming Language](https://docs.leo-lang.org/)
-- **Deployed Program**: `veleo_hero.aleo` on testnet beta
-- **Wallet Integration**: [@provablehq/aleo-wallet-adaptor-react](https://github.com/ProvableHQ/aleo-wallet-adapter)
-- **Explorer**: [Provable Explorer](https://testnet.explorer.provable.com/)
+---
 
-### Backend & Database
-- **Authentication**: [Firebase Auth](https://firebase.google.com/docs/auth)
-- **Database**: [Cloud Firestore](https://firebase.google.com/docs/firestore)
-- **Storage**: Firebase for metadata, Aleo blockchain for ownership records
+## 📁 Project Structure
+
+```
+attestra/
+├── app/
+│   ├── api/
+│   │   ├── pin/route.ts          # POST — pin event/badge/QR metadata to Filecoin
+│   │   └── verify/route.ts       # POST — run Gemini AI verification pipeline
+│   ├── layout.tsx                # Root layout with FCL config and Firebase providers
+│   └── page.tsx                  # Single-page app with role-based view routing
+│
+├── cadence/
+│   ├── contracts/
+│   │   └── AttendanceBadge.cdc   # Main Cadence smart contract
+│   ├── scripts/
+│   │   ├── GetEvent.cdc          # Query event record by ID
+│   │   ├── GetBadgeIDs.cdc       # Query badge IDs for an address
+│   │   └── GetAIVerification.cdc # Query AI verification record for an event
+│   └── transactions/
+│       ├── CreateEvent.cdc       # Organizer pays 100 FLOW, registers event on-chain
+│       ├── ClaimBadge.cdc        # Attendee pays 3 FLOW, mints badge on-chain
+│       └── SubmitAIVerification.cdc # Oracle submits AI proof hash on-chain
+│
+├── components/
+│   ├── attendee-portal.tsx       # Attendee badge claiming and reputation dashboard
+│   ├── badge-portfolio.tsx       # Badge gallery with Filecoin/Flow details
+│   ├── event-form.tsx            # Create event form with ZK-eligibility settings
+│   ├── event-list.tsx            # Organizer event list with AI Verify dialog
+│   ├── organizer-dashboard.tsx   # Top-level organizer view
+│   ├── qr-code-generator.tsx     # Bulk QR code generation + Filecoin CSV manifest
+│   ├── pricing.tsx               # Pricing tiers
+│   └── onboarding/               # Landing page sections (how it works, use cases)
+│
+├── lib/
+│   ├── ai/
+│   │   └── verification-agent.ts # Gemini Flash integration + oracle pipeline
+│   ├── firebase/
+│   │   ├── config.ts             # Firebase app initialization
+│   │   └── auth-context.tsx      # Auth provider and useAuth hook
+│   ├── flow/
+│   │   ├── client.ts             # FlowClient class + FCL config + oracle signer
+│   │   ├── hooks.ts              # useFlowWallet hook
+│   │   └── types.ts              # Flow type definitions
+│   ├── ipfs/
+│   │   └── client.ts             # Lighthouse upload helpers (JSON, CSV, buffer)
+│   ├── services/
+│   │   ├── event-hooks.ts        # useEventOperations, useEventInfo hooks
+│   │   ├── badge-hooks.ts        # useUserBadges hook
+│   │   ├── types.ts              # Shared TypeScript interfaces
+│   │   └── index.ts              # Re-exports
+│   └── config.ts                 # App-level config helpers
+│
+└── scripts/
+    └── generate-claim-codes.js   # CLI script to bulk-generate claim codes
+```
+
+---
 
 ## 📋 Prerequisites
 
-- **Node.js** 18+ and npm/yarn/pnpm
-- **Aleo Wallet** - [Leo Wallet](https://leo.app/) or [Puzzle Wallet](https://puzzle.online/) browser extension
-- **Aleo Testnet Credits** - For transaction fees (get from [Aleo Faucet](https://faucet.aleo.org/))
-- **Leo CLI** (optional, for contract development) - Install via `curl -L https://raw.githubusercontent.com/ProvableHQ/leo/testnet/install.sh | sh`
+- **Node.js** 18+
+- **Flow Wallet** — [Flow Wallet](https://wallet.flow.com/), [Blocto](https://blocto.io/), or any FCL-compatible wallet
+- **Flow Testnet FLOW tokens** — Get from the [Flow Testnet Faucet](https://testnet-faucet.onflow.org)
+  - Organizers need **100 FLOW** to create an event
+  - Attendees need **3 FLOW** to claim a badge
+- **Firebase Project** — Free Spark plan is sufficient
+- **Lighthouse account** — Free tier at [lighthouse.storage](https://lighthouse.storage)
+- **Gemini API key** — Free at [Google AI Studio](https://aistudio.google.com) (no credit card required)
+- **Flow CLI** — Required for contract deployment: see [docs](https://developers.flow.com/tools/flow-cli)
+
+---
 
 ## 🏁 Quick Start
 
-### 1. Clone the Repository
+### 1. Clone and Install
 
 ```bash
-git clone https://github.com/yourusername/veleo.git
-cd veleo
-```
-
-### 2. Install Dependencies
-
-```bash
+git clone https://github.com/yourusername/attestra.git
+cd attestra
 npm install
-# or
-yarn install
-# or
-pnpm install
 ```
 
-### 3. Smart Contract (Already Deployed)
-
-The Veleo smart contract is **already deployed** to Aleo testnet beta:
-
-- **Program ID**: `veleo_hero.aleo`
-- **Network**: Testnet Beta
-- **Explorer**: [View on Provable Explorer](https://testnet.explorer.provable.com/program/veleo_hero.aleo)
-
-#### Contract Functions
-
-1. **`create_event`** - Creates a new event on-chain
-   - Inputs: `event_id: field`, `max_attendees: u64`
-   - Returns: Event record and updates on-chain mappings
-
-2. **`claim_badge`** - Mints a badge for an attendee
-   - Inputs: `event_id: field`, `badge_id: field`, `timestamp: u64`
-   - Returns: Badge record with ownership
-
-#### Deploy Your Own (Optional)
-
-If you want to deploy your own instance:
+### 2. Configure Environment Variables
 
 ```bash
-cd aleo-contracts/attendance_badge
-leo build
-leo deploy --network testnet
-# Update NEXT_PUBLIC_ALEO_PROGRAM_ID in .env.local with your program ID
+cp .env.example .env.local
 ```
 
-### 4. Configure Environment
+Fill in all values — see [Environment Variables](#-environment-variables) below.
 
-Create a `.env.local` file in the root directory:
+### 3. Deploy the Cadence Contract
 
-```env
-# Aleo Configuration
-NEXT_PUBLIC_ALEO_PROGRAM_ID=veleo_hero.aleo
-NEXT_PUBLIC_ALEO_NETWORK=testnet
-NEXT_PUBLIC_ALEO_API_ENDPOINT=https://api.explorer.aleo.org/v1
+```bash
+# Create a testnet account (skip if you already have one)
+flow accounts create --network testnet
 
-# Firebase Configuration (required for authentication and metadata storage)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+# Deploy AttendanceBadge.cdc to testnet
+flow project deploy --network testnet
 ```
 
-**Note**: You'll need to set up a Firebase project at [console.firebase.google.com](https://console.firebase.google.com) and enable Authentication and Firestore.
+Copy the deployed contract address into `NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS` in `.env.local`.
 
-### 5. Run Development Server
+### 4. Run the Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## 📖 Project Structure
-
-```
-veleo/
-├── aleo-contracts/          # Leo smart contracts
-│   └── attendance_badge/
-│       ├── src/
-│       │   └── main.leo    # Main contract logic
-│       ├── program.json    # Program metadata
-│       └── README.md       # Contract documentation
-├── app/                     # Next.js App Router
-│   ├── layout.tsx          # Root layout with providers
-│   ├── page.tsx            # Main landing page
-│   └── globals.css         # Global styles and theme
-├── components/             # React components
-│   ├── ui/                 # shadcn/ui components
-│   ├── header.tsx          # Navigation header
-│   ├── organizer-dashboard.tsx
-│   ├── attendee-portal.tsx
-│   ├── badge-portfolio.tsx
-│   ├── event-form.tsx
-│   ├── qr-code-generator.tsx
-│   └── wallet-connector.tsx
-├── lib/                    # Utility functions
-│   ├── aleo/              # Aleo integration
-│   │   ├── client.ts      # Aleo client wrapper
-│   │   ├── types.ts       # Type definitions
-│   │   └── index.ts       # Exports
-│   ├── utils.ts           # Helper functions
-│   └── wallet-context.tsx # Wallet state management
-├── hooks/                  # Custom React hooks
-├── public/                 # Static assets
-└── package.json           # Dependencies and scripts
-```
-
-## 🎯 Usage Guide
-
-### As an Event Organizer
-
-1. **Connect Wallet**: Click "Connect Wallet" in the header
-2. **Install Wallet**: If you don't have one, install [Leo Wallet](https://leo.app/) or [Puzzle Wallet](https://puzzle.online/)
-3. **Select Role**: Choose "Event Organizer" on the landing page
-4. **Create Event**: Click "+ Create Event" button
-5. **Fill Details**: Enter event name, description, date, and location
-6. **Generate Codes**: After creation, generate QR codes or claim codes
-7. **Distribute**: Share QR codes/claim codes with attendees
-8. **Monitor**: Track badge claims in real-time on your dashboard
-
-### As an Attendee
-
-1. **Connect Wallet**: Click "Connect Wallet" in the header
-2. **Select Role**: Choose "Attendee" on the landing page
-3. **Claim Badge**: 
-   - Scan QR code at the event, OR
-   - Enter claim code manually
-4. **View Portfolio**: Check "Portfolio" tab to see all badges
-5. **Verify**: All badges are verifiable on-chain with privacy preserved
-6. **Share**: Export or share your badge portfolio
-
-## 🔐 Smart Contract Architecture
-
-The Veleo smart contract (`veleo_hero.aleo`) is written in Leo and deployed on Aleo testnet beta.
-
-### Records (Private State)
-
-**Badge Record**
-```leo
-record Badge {
-    owner: address,
-    event_id: field,
-    badge_id: field,
-    issued_at: u64,
-}
-```
-
-**Event Record**
-```leo
-record Event {
-    owner: address,
-    event_id: field,
-    max_attendees: u64,
-    is_active: bool,
-}
-```
-
-### Mappings (Public State)
-
-- **`events`**: `field => address` - Maps event IDs to organizer addresses
-- **`claimed_badges`**: `field => bool` - Tracks claimed badge IDs
-- **`badge_counts`**: `field => u64` - Counts badges per event
-
-### Transitions (Smart Contract Functions)
-
-**`create_event(event_id: field, max_attendees: u64)`**
-- Creates a new event on-chain
-- Returns an Event record to the organizer
-- Updates the `events` and `badge_counts` mappings
-- Transaction fee: ~1.0 credits
-
-**`claim_badge(event_id: field, badge_id: field, timestamp: u64)`**
-- Mints a new badge for an attendee
-- Returns a Badge record to the claimer
-- Updates the `claimed_badges` mapping
-- Transaction fee: ~1.0 credits
-
-### Privacy Model
-
-- **Records are private**: Badge and Event records are encrypted and only visible to owners
-- **Mappings are public**: Event counts and badge claims are publicly verifiable
-- **Zero-knowledge proofs**: All transactions are verified with ZK proofs without revealing private data
-- **Claim-based minting**: Badges are minted on-demand when claimed, not pre-minted (gas efficient)
-
-### Deployed Contract
-
-- **Program ID**: `veleo_hero.aleo`
-- **Network**: Aleo Testnet Beta
-- **Chain ID**: `testnetbeta`
-- **Explorer**: [https://testnet.explorer.provable.com/program/veleo_hero.aleo](https://testnet.explorer.provable.com/program/veleo_hero.aleo)
-
-## �️ System Architecture
-
-### High-Level Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          VELEO PLATFORM                             │
-│                                                                     │
-│  ┌─────────────────────────┐    ┌──────────────────────────────┐   │
-│  │      FRONTEND (Next.js) │    │     ALEO BLOCKCHAIN          │   │
-│  │                         │    │                              │   │
-│  │  ┌───────────────────┐  │    │  ┌────────────────────────┐ │   │
-│  │  │  Organizer        │  │    │  │  veleo_hero.aleo       │ │   │
-│  │  │  Dashboard        │──┼────┼─▶│                        │ │   │
-│  │  │  - Event Form     │  │    │  │  create_event()        │ │   │
-│  │  │  - QR Console     │  │    │  │  claim_badge()         │ │   │
-│  │  │  - Event List     │  │    │  │  transfer()            │ │   │
-│  │  └───────────────────┘  │    │  │  verify()              │ │   │
-│  │                         │    │  └────────────────────────┘ │   │
-│  │  ┌───────────────────┐  │    │                              │   │
-│  │  │  Attendee Portal  │  │    │  ┌────────────────────────┐ │   │
-│  │  │  - Badge Claimer  │──┼────┼─▶│  credits.aleo          │ │   │
-│  │  │  - Badge Portfolio│  │    │  │  transfer_public()     │ │   │
-│  │  └───────────────────┘  │    │  └────────────────────────┘ │   │
-│  │                         │    │                              │   │
-│  │  ┌───────────────────┐  │    │  ┌────────────────────────┐ │   │
-│  │  │  Wallet Adapter   │  │    │  │  ZK Proof Engine       │ │   │
-│  │  │  - Leo Wallet     │──┼────┼─▶│  (Aleo Testnet)        │ │   │
-│  │  │  - Shield Wallet  │  │    │  └────────────────────────┘ │   │
-│  │  │  - Puzzle Wallet  │  │    └──────────────────────────────┘   │
-│  │  │  - Fox Wallet     │  │                                       │
-│  │  └───────────────────┘  │    ┌──────────────────────────────┐   │
-│  └─────────────────────────┘    │     FIREBASE (Backend)       │   │
-│                                 │                              │   │
-│  ┌─────────────────────────┐    │  ┌────────────────────────┐ │   │
-│  │    AUTH LAYER           │    │  │  Firestore Collections │ │   │
-│  │                         │    │  │  - users               │ │   │
-│  │  Firebase Auth          │    │  │  - events              │ │   │
-│  │  - Email/Password       │────┼─▶│  - badges              │ │   │
-│  │  - Google OAuth         │    │  │  - claimCodes          │ │   │
-│  └─────────────────────────┘    │  └────────────────────────┘ │   │
-│                                 │                              │   │
-│                                 │  ┌────────────────────────┐ │   │
-│                                 │  │  Firebase Auth         │ │   │
-│                                 │  │  - Session management  │ │   │
-│                                 │  │  - Role-based access   │ │   │
-│                                 │  └────────────────────────┘ │   │
-│                                 └──────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Data Flow
-
-#### Badge Generation Flow (Organizer)
-
-```
-Organizer                  Frontend               Firebase           Aleo Blockchain
-    │                          │                      │                     │
-    │── Connect Wallet ────────▶│                      │                     │
-    │── Create Event ──────────▶│                      │                     │
-    │                          │── Store event ───────▶│                     │
-    │                          │── executeTransaction ─────────────────────▶│
-    │                          │                      │  create_event() ZK  │
-    │                          │◀─ TX confirmed ───────────────────────────│
-    │                          │                      │                     │
-    │── Generate QR Codes ─────▶│                      │                     │
-    │                          │── Pay 0.1 LEO/badge ──────────────────────▶│
-    │                          │                      │  transfer_public()  │
-    │                          │◀─ TX confirmed ───────────────────────────│
-    │                          │── Store claim codes ─▶│                     │
-    │◀─ QR Codes displayed ────│                      │                     │
-```
-
-#### Badge Claiming Flow (Attendee)
-
-```
-Attendee                   Frontend               Firebase           Aleo Blockchain
-    │                          │                      │                     │
-    │── Connect Wallet ────────▶│                      │                     │
-    │── Enter Claim Code ──────▶│                      │                     │
-    │                          │── Validate code ─────▶│                     │
-    │                          │◀─ Code valid ─────────│                     │
-    │                          │── Check eligibility ──▶│                     │
-    │                          │◀─ Eligible ───────────│                     │
-    │                          │── executeTransaction ─────────────────────▶│
-    │                          │                      │  claim_badge() ZK   │
-    │                          │◀─ Badge minted ────────────────────────────│
-    │                          │── Store badge record ─▶│                     │
-    │                          │── Mark code as used ──▶│                     │
-    │◀─ Badge in portfolio ────│                      │                     │
-```
-
-### Component Architecture
-
-```
-app/
-└── page.tsx                        ← Root page, role-based routing
-    │
-    ├── OrganizerDashboard
-    │   ├── EventForm               ← Create events (on-chain + Firestore)
-    │   ├── EventList               ← List events with stats
-    │   │   └── QRCodeGenerator     ← Generate & manage claim codes
-    │   └── BadgePortfolio          ← Organizer's own badges
-    │
-    └── AttendeePortal
-        ├── BadgeClaimer            ← Claim badges via code/QR
-        └── BadgePortfolio          ← Attendee's badge collection
-```
-
-### Hybrid Storage Model
-
-Veleo uses a **dual-layer storage** approach to balance privacy, cost, and performance:
-
-| Data | Storage | Reason |
-|------|---------|--------|
-| Badge ownership | Aleo blockchain (private record) | Cryptographically owned, ZK-verified |
-| Event on-chain ID | Aleo blockchain (public mapping) | Publicly auditable |
-| Badge counts | Aleo blockchain (public mapping) | Transparent aggregate stats |
-| Event metadata | Firebase Firestore | Fast queries, rich data |
-| Claim codes | Firebase Firestore | Single-use validation |
-| User profiles & roles | Firebase Firestore | Auth & role management |
-| Badge metadata | Firebase Firestore | Searchable, filterable |
-| Aleo TX IDs | Firebase Firestore | Cross-reference on-chain proofs |
-
-### Wallet Adapter Layer
-
-```
-@provablehq/aleo-wallet-adaptor-react  (Provider + useWallet hook)
-        │
-        ├── @provablehq/aleo-wallet-adaptor-leo     (Leo Wallet)
-        ├── @provablehq/aleo-wallet-adaptor-shield  (Shield Wallet)
-        ├── @provablehq/aleo-wallet-adaptor-puzzle  (Puzzle Wallet)
-        └── @provablehq/aleo-wallet-adaptor-fox     (Fox Wallet)
-
-Transaction execution:
-  adapter.executeTransaction(TransactionOptions)
-    └── { program, function, inputs, fee, privateFee }
-```
-
-### Fee Model
-
-| Action | Who Pays | Amount | Destination |
-|--------|----------|--------|-------------|
-| Generate badge codes | Organizer | 0.1 LEO per code | Treasury |
-| Claim badge (ZK proof) | Network fee (Aleo) | ~gas | Aleo validators |
-| Attendee claiming | Free | 0 LEO | — |
-
-### Security Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│              SECURITY LAYERS                    │
-│                                                 │
-│  Layer 1: Firebase Auth                         │
-│  ├── Email/Password + Google OAuth              │
-│  ├── Role-based access (organizer / attendee)   │
-│  └── Firestore security rules per role          │
-│                                                 │
-│  Layer 2: Claim Code Validation                 │
-│  ├── Single-use codes (marked used on claim)    │
-│  ├── Event eligibility checks                   │
-│  └── Prerequisite event gating                  │
-│                                                 │
-│  Layer 3: Aleo ZK Proofs                        │
-│  ├── All transactions verified with ZK-SNARKs   │
-│  ├── Badge records encrypted (owner-only)       │
-│  ├── No private keys ever leave the wallet      │
-│  └── Public mappings for aggregate auditability │
-└─────────────────────────────────────────────────┘
-```
-
-## � Theme System
-
-Veleo supports both light and dark modes with:
-- System preference detection
-- Manual toggle in header
-- Smooth transitions between themes
-- Persistent theme selection
-
-## 💼 Wallet Integration
-
-Veleo uses the official **Provable Aleo Wallet Adapter** library for universal wallet support.
-
-### Supported Wallets
-- **[Leo Wallet](https://leo.app/)** - Official Aleo wallet browser extension
-- **[Shield Wallet](https://shieldwallet.io/)** - Privacy-focused Aleo wallet
-- **[Puzzle Wallet](https://puzzle.online/)** - Community-built Aleo wallet
-- **[Fox Wallet](https://foxwallet.com/)** - Multi-chain wallet with Aleo support
-
-### Integration Details
-
-**Libraries Used:**
-- `@provablehq/aleo-wallet-adaptor-react` - React hooks, context, and provider
-- `@provablehq/aleo-wallet-adaptor-leo` - Leo Wallet adapter
-- `@provablehq/aleo-wallet-adaptor-shield` - Shield Wallet adapter
-- `@provablehq/aleo-wallet-adaptor-puzzle` - Puzzle Wallet adapter
-- `@provablehq/aleo-wallet-adaptor-fox` - Fox Wallet adapter
-
-**Features:**
-- Multi-wallet support with automatic detection
-- Transaction signing for `create_event` and `claim_badge`
-- Network validation (testnet)
-- Public key display and copy functionality
-- Seamless connect/disconnect flow
-
-**Transaction Flow:**
-1. User connects wallet via wallet selector
-2. App calls `adapter.executeTransaction(TransactionOptions)`
-3. Wallet prompts user to approve transaction
-4. ZK proof is generated and broadcast to Aleo network
-5. Transaction ID is returned and stored in Firebase
-
-## 🏆 Badge Categories
-
-- 🌐 **Conferences** - Multi-day events
-- 🏆 **Hackathons** - Coding competitions
-- 🎓 **Meetups** - Community gatherings
-- 🔒 **Workshops** - Educational sessions
-
-## 🔒 Security & Privacy
-
-### Blockchain Security
-- **Zero-knowledge proofs**: All transactions use ZK-SNARKs for privacy
-- **Wallet signatures**: Required for all on-chain operations
-- **Private records**: Badge and Event records are encrypted on-chain
-- **Public mappings**: Only aggregate data (counts, claims) are public
-
-### Application Security
-- **Firebase Authentication**: Secure user login and session management
-- **Claim code validation**: Codes are single-use and validated before minting
-- **Transaction verification**: All blockchain transactions are verified on-chain
-- **No private key storage**: Wallets manage keys, app never accesses them
-
-### Data Privacy
-- **Hybrid storage**: Sensitive data on blockchain, metadata in Firebase
-- **User control**: Users own their badge records via wallet
-- **No tracking**: No analytics or tracking of user behavior
-- **GDPR compliant**: Users can delete Firebase data anytime
-
-## 🌐 Deployment
-
-### Vercel (Recommended)
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/veleo)
-
-1. Connect your GitHub repository
-2. Add environment variables:
-   - `NEXT_PUBLIC_ALEO_PROGRAM_ID`
-   - `NEXT_PUBLIC_ALEO_NETWORK`
-3. Deploy
-
-### Manual Deployment
-
-```bash
-# Build the application
-npm run build
-
-# Start production server
-npm start
-```
-
-## 🛠️ Development
-
-### Available Scripts
-
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
-```
-
-### Smart Contract Development
-
-```bash
-cd aleo-contracts/attendance_badge
-
-# Build contract
-leo build
-
-# Run tests
-leo test
-
-# Deploy to testnet
-leo deploy --network testnet
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow TypeScript best practices
-- Use existing UI components from shadcn/ui
-- Maintain responsive design
-- Test on both light and dark modes
-- Write clear commit messages
-- Ensure privacy-preserving features are maintained
-
-## 📚 Resources
-
-### Aleo Resources
-- [Aleo Developer Documentation](https://developer.aleo.org/)
-- [Leo Language Documentation](https://docs.leo-lang.org/)
-- [Leo Playground](https://play.leo-lang.org/)
-- [Aleo Testnet Explorer](https://testnet.explorer.provable.com/)
-- [Aleo Faucet](https://faucet.aleo.org/)
-- [Aleo Discord Community](https://discord.com/invite/aleo)
-
-### Wallet Resources
-- [Provable Aleo Wallet Adapter](https://github.com/ProvableHQ/aleo-wallet-adapter)
-- [Leo Wallet](https://leo.app/)
-- [Shield Wallet](https://shieldwallet.io/)
-- [Puzzle Wallet](https://puzzle.online/)
-- [Fox Wallet](https://foxwallet.com/)
-
-### Development Resources
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Firebase Documentation](https://firebase.google.com/docs)
-- [TailwindCSS Documentation](https://tailwindcss.com/docs)
-
-### Deployed Contract
-- **Program**: `veleo_hero.aleo`
-- **Explorer**: [View on Provable Explorer](https://testnet.explorer.provable.com/program/veleo_hero.aleo)
-
-## 🐛 Troubleshooting
-
-### Wallet Connection Issues
-
-**Problem**: Wallet not connecting
-- Ensure Leo Wallet or Puzzle Wallet extension is installed and enabled
-- Check that wallet is connected to **testnetbeta** network (not testnet3)
-- Refresh the page and try reconnecting
-- Check browser console for errors
-
-**Problem**: Transaction failing with network mismatch
-- Verify wallet is on `testnetbeta` network
-- App uses `chainId: "testnetbeta"` to match wallet network
-- Switch wallet network in extension settings if needed
-
-### Transaction Errors
-
-**Problem**: "Insufficient credits" error
-- Get testnet credits from [Aleo Faucet](https://faucet.aleo.org/)
-- Ensure you have at least 1.5 credits for transactions
-- Check wallet balance in extension
-
-**Problem**: "Cannot set properties of undefined (setting 'transitionId')"
-- This is a known issue with Leo Wallet adapter
-- Try using `requestTransaction()` instead of `requestExecution()`
-- Update Leo Wallet extension to latest version
-- Report issue to Aleo Wallet Adapter GitHub
-
-### Build Errors
-
-**Problem**: Module not found errors
-- Run `npm install` to ensure all dependencies are installed
-- Delete `node_modules` and reinstall: `rm -rf node_modules && npm install`
-- Clear Next.js cache: `rm -rf .next && npm run dev`
-
-**Problem**: TypeScript errors
-- Check Node.js version (requires 18+)
-- Ensure TypeScript 5+ is installed
-- Run `npm run lint` to check for issues
-
-### Firebase Issues
-
-**Problem**: Authentication not working
-- Verify Firebase configuration in `.env.local`
-- Enable Email/Password authentication in Firebase Console
-- Check Firebase project settings and API keys
-
-**Problem**: Firestore permission denied
-- Update Firestore security rules to allow authenticated users
-- Check user is logged in before accessing Firestore
-- Verify Firebase project ID matches configuration
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **[Aleo](https://aleo.org)** - For pioneering zero-knowledge blockchain technology and Leo programming language
-- **[Provable HQ](https://github.com/ProvableHQ)** - For the Aleo Wallet Adapter library enabling universal wallet support
-- **[Firebase](https://firebase.google.com)** - For authentication and database infrastructure
-- **[shadcn/ui](https://ui.shadcn.com/)** - For beautiful, accessible UI components
-- **[Radix UI](https://www.radix-ui.com/)** - For primitive component architecture
-- **[Vercel](https://vercel.com)** - For Next.js framework and hosting platform
-
-## 📧 Contact
-
-Project Link: [https://github.com/yourusername/veleo](https://github.com/yourusername/veleo)
+Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-**Built with 🔐 on Aleo** | [Documentation](https://developer.aleo.org/) | [Community](https://discord.com/invite/aleo)
+## 🔑 Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in all values.
+
+### Firebase
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+```
+
+Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com), enable **Authentication** (Email/Password) and **Firestore Database**.
+
+### Flow Blockchain
+
+```env
+NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS=0xYourDeployedContractAddress
+NEXT_PUBLIC_FLOW_NETWORK=testnet
+NEXT_PUBLIC_FLOW_ACCESS_NODE=https://rest-testnet.onflow.org
+NEXT_PUBLIC_FLOW_WALLET_DISCOVERY=https://fcl-discovery.onflow.org/testnet/authn
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=        # https://cloud.walletconnect.com
+
+FLOW_TESTNET_ADDRESS=0xYourTestnetAccountAddress
+FLOW_TESTNET_PRIVATE_KEY=your_testnet_private_key_hex
+
+# Oracle account — used by /api/verify to sign AI verification transactions server-side
+FLOW_ORACLE_ADDRESS=0xYourOracleAccountAddress
+FLOW_ORACLE_PRIVATE_KEY=your_oracle_private_key_hex
+```
+
+Generate a key pair with `flow keys generate` and fund both accounts from the [testnet faucet](https://testnet-faucet.onflow.org).
+
+### Filecoin — Lighthouse
+
+```env
+LIGHTHOUSE_API_KEY=       # https://lighthouse.storage — free tier
+```
+
+> **Note:** Do NOT prefix with `NEXT_PUBLIC_`. This key is server-side only.
+
+### AI Verification — Gemini
+
+```env
+GEMINI_API_KEY=           # https://aistudio.google.com — free, no credit card
+NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT=/api/verify
+```
+
+Free quota: **15 requests/min, 1M tokens/day** on `gemini-2.0-flash`.
+
+---
+
+## ⛓️ Smart Contract
+
+### `AttendanceBadge.cdc`
+
+Located at `cadence/contracts/AttendanceBadge.cdc`. Deployed on Flow Testnet.
+
+#### On-Chain State
+
+| Storage | Type | Description |
+|---|---|---|
+| `events` | `{String: EventRecord}` | Registry of all events keyed by `eventId` |
+| `verifications` | `{String: VerificationRecord}` | AI verification proofs keyed by `eventId` |
+| `totalBadges` | `UInt64` | Global badge counter |
+| `totalEvents` | `UInt64` | Global event counter |
+
+#### Transactions
+
+| Transaction | Fee | Description |
+|---|---|---|
+| `CreateEvent.cdc` | 100 FLOW | Registers an event on-chain; transfers fee to contract owner |
+| `ClaimBadge.cdc` | 3 FLOW | Mints a badge for the claimer; transfers fee to contract owner |
+| `SubmitAIVerification.cdc` | gas only | Records AI proof hash and Filecoin CID on-chain (oracle-signed) |
+
+#### Scripts (read-only)
+
+| Script | Description |
+|---|---|
+| `GetEvent.cdc` | Returns `EventRecord` for a given `eventId` |
+| `GetBadgeIDs.cdc` | Returns badge IDs owned by a given `Address` |
+| `GetAIVerification.cdc` | Returns `VerificationRecord` for a given `eventId` |
+
+#### Events Emitted
+
+```cadence
+event EventCreated(eventId: String, organizer: Address, filecoinCid: String)
+event BadgeMinted(eventId: String, recipient: Address, badgeId: UInt64, filecoinCid: String)
+event BadgeClaimed(eventId: String, claimer: Address, claimCode: String, filecoinCid: String)
+event AIVerificationSubmitted(eventId: String, oracle: Address, proofHash: String, filecoinCid: String)
+```
+
+---
+
+## 🗂️ API Routes
+
+### `POST /api/pin`
+
+Pins metadata to Filecoin via Lighthouse. Server-side only — keeps `LIGHTHOUSE_API_KEY` off the client.
+
+**Request body:**
+
+```jsonc
+// Pin event metadata
+{ "type": "event", "data": { "eventId": "...", "name": "...", ...EventMetadata } }
+
+// Pin badge metadata (saved as CSV)
+{ "type": "badge", "data": { "eventId": "...", "claimCode": "...", ...BadgeMetadata } }
+
+// Pin QR code batch manifest (CSV)
+{ "type": "qr-manifest", "data": { "rows": [...], "eventId": "...", "eventName": "..." } }
+```
+
+**Response:**
+
+```jsonc
+{ "cid": "bafyrei...", "url": "https://gateway.lighthouse.storage/ipfs/bafyrei...", "size": 512, "name": "attestra/..." }
+
+// On Lighthouse network error (non-fatal — Flow tx still proceeds):
+{ "cid": null, "url": null, "size": 0, "name": "", "pending": true }
+```
+
+**Filecoin path naming:**
+
+```
+attestra/{eventId}/event-metadata--{slug}.json
+attestra/{eventId}/badges/{claimCode}.csv
+attestra/{eventId}/qr-codes/batch-{timestamp}--{slug}.csv
+attestra/{eventId}/ai-verification.json
+```
+
+---
+
+### `POST /api/verify`
+
+Runs the full AI verification pipeline for an event.
+
+**Request body:**
+
+```json
+{
+  "eventId": "firestore-event-id",
+  "imageUrls": ["https://...", "https://..."],
+  "attendeeAddress": "0xOptionalFlowAddress"
+}
+```
+
+**Pipeline:**
+1. Fetches each image URL and encodes to base64
+2. Sends to `gemini-2.0-flash` with an attendance verification prompt
+3. Parses confidence score from AI response
+4. Hashes result with SHA-256 → `proofHash`
+5. Pins verification artifact as JSON to Filecoin
+6. Oracle account signs + submits `SubmitAIVerification` transaction on Flow
+
+**Response:**
+
+```json
+{
+  "eventId": "...",
+  "verified": true,
+  "confidence": 0.92,
+  "proofHash": "sha256:...",
+  "ipfsCid": "bafyrei...",
+  "flowTxId": "a1b2c3...",
+  "timestamp": 1741234567890
+}
+```
+
+---
+
+## 🔒 ZK-Gated Events
+
+Organizers can set eligibility rules enforced at claim time:
+
+### Prerequisite Badge
+
+Attendees must hold a badge from a specified previous event.
+
+```
+Eligibility Required: You must hold a badge from "Flow Hackathon 2025" to claim this badge.
+```
+
+### Minimum Reputation Level
+
+Based on total badges held across all events:
+
+| Badges | Level | Label |
+|---|---|---|
+| 0 | 0 | Beginner |
+| 1+ | 1 | Initiate |
+| 3+ | 2 | Voyager |
+| 6+ | 3 | Visionary |
+
+```
+Reputation Too Low: This event requires Voyager status (3+ badges). You have 1.
+```
+
+---
+
+## 🚢 Deploying to Vercel
+
+### 1. Push to GitHub
+
+```bash
+git add .
+git commit -m "deploy attestra"
+git push origin main
+```
+
+### 2. Import on Vercel
+
+Go to [vercel.com/new](https://vercel.com/new) and import your repository.
+
+### 3. Set Environment Variables
+
+In your Vercel project **Settings → Environment Variables**, add every variable from `.env.example`:
+
+```
+NEXT_PUBLIC_FIREBASE_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+NEXT_PUBLIC_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+NEXT_PUBLIC_FIREBASE_APP_ID
+NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS
+NEXT_PUBLIC_FLOW_NETWORK
+NEXT_PUBLIC_FLOW_ACCESS_NODE
+NEXT_PUBLIC_FLOW_WALLET_DISCOVERY
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+FLOW_TESTNET_ADDRESS
+FLOW_TESTNET_PRIVATE_KEY
+FLOW_ORACLE_ADDRESS
+FLOW_ORACLE_PRIVATE_KEY
+LIGHTHOUSE_API_KEY
+GEMINI_API_KEY
+NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT
+```
+
+### 4. Deploy
+
+Vercel auto-deploys on every push to `main`.
+
+> **Important:** `@onflow/fcl` and `@lighthouse-web3/sdk` are listed in `serverExternalPackages` in `next.config.mjs` — required for Vercel serverless functions to load them at runtime instead of bundling them.
+
+---
+
+## 🛠️ Local Development
+
+### Generate Claim Codes (CLI)
+
+```bash
+npm run generate:codes
+```
+
+### Firestore Security Rules
+
+Production-ready rules are in `firestore.rules`. Deploy with:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+### Flow Emulator (contract development)
+
+```bash
+flow emulator start
+flow project deploy --network emulator
+```
+
+---
+
+## 🤖 AI Verification Agent
+
+The verification pipeline in `lib/ai/verification-agent.ts` uses **Gemini Flash 2.0** via `@google/generative-ai`.
+
+### Oracle Pattern
+
+The oracle account is a dedicated Flow testnet account whose private key is stored server-side in `FLOW_ORACLE_PRIVATE_KEY`. It never interacts with user wallets. `getOracleAuthorizer()` in `lib/flow/client.ts` builds the FCL authorizer using P-256 signing with `elliptic` + `sha3`.
+
+---
+
+## 📦 Filecoin Storage
+
+All persistent artifacts are stored on Filecoin via [Lighthouse](https://lighthouse.storage).
+
+| Artifact | Format | Path |
+|---|---|---|
+| Event metadata | JSON | `attestra/{eventId}/event-metadata--{slug}.json` |
+| Badge metadata | CSV | `attestra/{eventId}/badges/{claimCode}.csv` |
+| QR code batch manifest | CSV | `attestra/{eventId}/qr-codes/batch-{timestamp}--{slug}.csv` |
+| AI verification artifact | JSON | `attestra/{eventId}/ai-verification.json` |
+
+Verify any CID at:
+
+```
+https://gateway.lighthouse.storage/ipfs/<CID>
+```
+
+---
+
+## 📜 License
+
+MIT
+
+---
+
+## 🙏 Acknowledgements
+
+- [Flow Blockchain](https://flow.com) — Cadence smart contracts and FCL
+- [Lighthouse / Filecoin](https://lighthouse.storage) — Decentralized storage
+- [Google Gemini](https://ai.google.dev/) — AI vision verification
+- [Firebase](https://firebase.google.com) — Authentication and Firestore
+- [shadcn/ui](https://ui.shadcn.com/) — UI component library
+- [Vercel](https://vercel.com) — Deployment platform
