@@ -11,6 +11,9 @@ import { useEventOperations, useEventInfo } from "@/lib/services"
 import { EventCategory } from "@/lib/services/types"
 import { useFlowWallet } from "@/lib/flow/hooks"
 import { getFlowClient } from "@/lib/flow/client"
+import * as fcl from "@onflow/fcl"
+import { deleteDoc, doc } from "firebase/firestore"
+import { db } from "@/lib/firebase/config"
 import { ShieldCheck, UserCheck } from "lucide-react"
 
 interface EventFormProps {
@@ -18,12 +21,12 @@ interface EventFormProps {
   onSuccess?: () => void
 }
 
-const EVENT_CREATION_FEE = 0.001 // 0.001 FLOW
+const EVENT_CREATION_FEE = 100 // 100 FLOW fixed fee
 
 export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
   const { createEvent, loading: creating, error: createError } = useEventOperations()
   const { events: allEvents } = useEventInfo()
-  const { address } = useFlowWallet()
+  const { address, verified } = useFlowWallet()
 
   const [formData, setFormData] = useState({
     name: "",
@@ -45,7 +48,12 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
     if (!formData.name.trim()) return
 
     if (!address) {
-      alert("Please connect your wallet to create an event")
+      alert("Please connect your Flow wallet to create an event")
+      return
+    }
+
+    if (!verified) {
+      alert("Wallet ownership not verified. Please disconnect and reconnect your wallet to verify ownership before creating an event.")
       return
     }
 
@@ -53,38 +61,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
     setSuccessMessage("")
 
     try {
-      // Call Flow smart contract to create event
-      console.log(`[EventForm] Creating event on Flow blockchain...`)
-
-      if (address) {
-        try {
-          const { pinEventMetadata } = await import('@/lib/ipfs/client');
-          const ipfsResult = await pinEventMetadata({
-            name: formData.name,
-            description: formData.description,
-            location: formData.location,
-            startDate: formData.startDate || new Date().toISOString(),
-            endDate: formData.endDate || new Date().toISOString(),
-            category: formData.category,
-            organizerId: address,
-            maxAttendees: formData.maxAttendees,
-            imageUrl: formData.imageUrl,
-            createdAt: new Date().toISOString(),
-          });
-          console.log('[EventForm] Event metadata pinned to IPFS/Filecoin, CID:', ipfsResult.cid);
-
-          const flowClient = getFlowClient();
-          const eventId = `${Date.now()}-${formData.name.toLowerCase().replace(/\s+/g, '-')}`;
-          const txResult = await flowClient.createEvent(eventId, formData.maxAttendees, ipfsResult.cid);
-          console.log('[EventForm] Event created on Flow! TX:', txResult.transactionId);
-
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch (txError: any) {
-          console.error('[EventForm] Flow transaction failed (non-fatal):', txError);
-        }
-      }
-
-      // Also store in Firebase for UI/metadata
+      // Step 1: Build the Firebase event payload
       const eventData: any = {
         name: formData.name,
         description: formData.description,
@@ -97,13 +74,71 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
         isActive: true,
         minReputationLevel: formData.minReputationLevel,
       };
-
-      // Only add prerequisiteEventId if it's not "none"
       if (formData.prerequisiteEventId !== "none") {
         eventData.prerequisiteEventId = formData.prerequisiteEventId;
       }
 
-      const eventId = await createEvent(eventData)
+      // Step 2: Create Firebase doc first — its ID becomes the canonical eventId
+      // used on BOTH Firebase and the Flow chain so claimBadge can always find the event.
+      const eventId = await createEvent(eventData);
+      console.log(`[EventForm] Firebase event created with ID: ${eventId}`);
+
+      // Step 3: Flow on-chain registration (mandatory — 100 FLOW fee)
+      try {
+        // Pin metadata server-side so LIGHTHOUSE_API_KEY stays off the client
+        const pinRes = await fetch('/api/pin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'event',
+            data: {
+              eventId,
+              name: formData.name,
+              description: formData.description,
+              location: formData.location,
+              startDate: formData.startDate || new Date().toISOString(),
+              endDate: formData.endDate || new Date().toISOString(),
+              category: formData.category,
+              organizerId: address,
+              maxAttendees: formData.maxAttendees,
+              imageUrl: formData.imageUrl,
+              createdAt: new Date().toISOString(),
+            },
+          }),
+        });
+        if (!pinRes.ok) throw new Error(await pinRes.text());
+        const ipfsResult = await pinRes.json();
+        console.log('[EventForm] Event metadata pinned to Filecoin, CID:', ipfsResult.cid);
+
+        // Ensure FCL wallet is authenticated so the popup fires
+        const currentUser = await fcl.currentUser.snapshot();
+        if (!currentUser.loggedIn) {
+          await fcl.authenticate();
+        }
+
+        const flowClient = getFlowClient();
+
+        // Pre-flight: verify organizer has at least 100 FLOW before sending tx
+        const balance = await flowClient.getFlowBalance(address!);
+        if (balance < EVENT_CREATION_FEE) {
+          throw new Error(
+            `Insufficient FLOW balance. You have ${balance.toFixed(2)} FLOW but need ${EVENT_CREATION_FEE} FLOW to create an event.`
+          );
+        }
+
+        // Pass the Firebase doc ID as the Flow eventId — single source of truth
+        const txResult = await flowClient.createEvent(eventId, formData.maxAttendees, ipfsResult.cid);
+        console.log('[EventForm] Event registered on Flow chain! TX:', txResult.transactionId);
+
+        // Write flowTxId back to the Firebase doc so chain ↔ DB are permanently linked
+        const { updateDoc, doc: firestoreDoc } = await import('firebase/firestore');
+        await updateDoc(firestoreDoc(db, 'events', eventId), { flowTxId: txResult.transactionId });
+      } catch (txError: any) {
+        // Flow tx failed — roll back the Firebase doc so no orphan record exists
+        console.error('[EventForm] Flow tx failed, rolling back Firebase doc:', eventId);
+        await deleteDoc(doc(db, 'events', eventId));
+        throw txError;
+      }
 
       setSuccessMessage(`Event created successfully! Fee: ${EVENT_CREATION_FEE} FLOW`)
       onSubmit(formData)

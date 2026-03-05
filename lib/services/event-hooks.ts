@@ -163,47 +163,60 @@ export function useEventOperations() {
 
       let aleoTxId = null;
 
-      // Mint badge on Aleo blockchain if wallet is connected
-      if (walletPublicKey && requestExecution) {
-        try {
-          console.log('[ClaimBadge] Minting badge on Aleo blockchain...');
+      // Flow transaction is mandatory — badge claim always requires 3 FLOW fee
+      try {
+        console.log('[ClaimBadge] Initiating Flow badge claim...');
 
-          // Generate unique badge ID from claim code
-          const badgeIdHash = `${claimCode}${Date.now()}`.split('').reduce((a, b) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-          }, 0);
+        // Pin badge metadata server-side so LIGHTHOUSE_API_KEY stays off the client
+        const pinRes = await fetch('/api/pin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'badge',
+            data: {
+              eventId: claimCodeData.eventId,
+              eventName: eventData?.name || 'Unknown Event',
+              attendeeId: user.uid,
+              claimCode: claimCode,
+              claimedAt: new Date().toISOString(),
+              category: eventData?.category || 'Conference',
+            },
+          }),
+        });
+        if (!pinRes.ok) throw new Error(await pinRes.text());
+        const ipfsResult = await pinRes.json();
+        console.log('[ClaimBadge] Badge metadata pinned to Filecoin, CID:', ipfsResult.cid);
 
-          const eventIdHash = claimCodeData.eventId.split('').reduce((a: number, b: string) => {
-            a = ((a << 5) - a) + b.charCodeAt(0);
-            return a & a;
-          }, 0);
+        const { getFlowClient } = await import('@/lib/flow/client');
+        const flowClient = getFlowClient();
+        const fcl = await import('@onflow/fcl');
 
-          // Pin badge metadata to IPFS/Filecoin, then mint on Flow
-          const { pinBadgeMetadata } = await import('@/lib/ipfs/client');
-          const ipfsResult = await pinBadgeMetadata({
-            eventId: claimCodeData.eventId,
-            eventName: eventData?.name || 'Unknown Event',
-            attendeeId: user.uid,
-            claimCode: claimCode,
-            claimedAt: new Date().toISOString(),
-            category: eventData?.category || 'Conference',
-          });
-          console.log('[ClaimBadge] Badge metadata pinned to IPFS, CID:', ipfsResult.cid);
+        // Ensure wallet is authenticated before any tx — triggers wallet popup if needed
+        await fcl.authenticate();
 
-          const { getFlowClient } = await import('@/lib/flow/client');
-          const flowClient = getFlowClient();
-          const flowTx = await flowClient.claimBadge(
-            claimCodeData.eventId,
-            claimCode,
-            ipfsResult.cid
+        // Pre-flight: verify attendee has at least 3 FLOW before sending tx
+        const currentUser = await fcl.currentUser.snapshot();
+        const walletAddress = currentUser.addr;
+        if (!walletAddress) throw new Error('Flow wallet not connected. Please connect your wallet to claim a badge.');
+
+        const balance = await flowClient.getFlowBalance(walletAddress);
+        if (balance < 3) {
+          throw new Error(
+            `Insufficient FLOW balance. You have ${balance.toFixed(2)} FLOW but need at least 3 FLOW to redeem this badge.`
           );
-          aleoTxId = flowTx.transactionId;
-          console.log('[ClaimBadge] Badge minted on Flow! TX:', aleoTxId);
-        } catch (flowError: any) {
-          console.error('[ClaimBadge] Flow minting failed (non-fatal):', flowError);
-          // Continue with Firebase record even if blockchain mint fails
         }
+
+        // Submit on-chain tx — wallet will show confirmation popup with 3 FLOW fee
+        const flowTx = await flowClient.claimBadge(
+          claimCodeData.eventId,
+          claimCode,
+          ipfsResult.cid
+        );
+        aleoTxId = flowTx.transactionId;
+        console.log('[ClaimBadge] Badge claimed on Flow! TX:', aleoTxId);
+      } catch (flowError: any) {
+        // All Flow errors are fatal — Firebase write must NOT proceed if token deduction failed
+        throw flowError;
       }
 
       // Create badge record in Firebase
@@ -253,19 +266,25 @@ export function useEventOperations() {
     return updateEvent(eventId, { isActive });
   };
 
-  const addClaimCodes = async (eventId: string, codes: string[]) => {
+  const addClaimCodes = async (eventId: string, codes: string[], filecoinCids?: (string | undefined)[]) => {
     try {
       setLoading(true);
       const claimCodesRef = collection(db, 'claimCodes');
 
-      const promises = codes.map(code =>
-        addDoc(claimCodesRef, {
+      const promises = codes.map((code, i) => {
+        const doc: Record<string, any> = {
           eventId,
           code,
           used: false,
           createdAt: serverTimestamp(),
-        })
-      );
+        };
+        const cid = filecoinCids?.[i];
+        if (cid) {
+          doc.filecoinCid = cid;
+          doc.filecoinUrl = `https://gateway.lighthouse.storage/ipfs/${cid}`;
+        }
+        return addDoc(claimCodesRef, doc);
+      });
 
       await Promise.all(promises);
     } catch (err) {

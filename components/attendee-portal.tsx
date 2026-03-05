@@ -39,7 +39,7 @@ interface AttendeePortalProps {
 export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const applicationId = getApplicationId()
   const { user, userProfile, logout } = useAuth()
-  const { address } = useFlowWallet()
+  const { address, verified } = useFlowWallet()
   const { claimBadge, loading, error } = useEventOperations()
   const { badges: userBadges, refetch } = useUserBadges()
 
@@ -79,6 +79,16 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const handleClaimBadge = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!claimCode.trim()) return
+
+    if (!address) {
+      setClaimStatus({ type: 'error', message: 'Please connect your Flow wallet to claim a badge.' })
+      return
+    }
+
+    if (!verified) {
+      setClaimStatus({ type: 'error', message: 'Wallet ownership not verified. Please disconnect and reconnect your wallet to verify ownership before claiming.' })
+      return
+    }
 
     setClaimStatus(null)
 

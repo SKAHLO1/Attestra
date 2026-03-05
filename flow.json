@@ -1,8 +1,11 @@
 {
+	"contracts": {
+		"AttendanceBadge": "./cadence/contracts/AttendanceBadge.cdc"
+	},
 	"networks": {
 		"emulator": "127.0.0.1:3569",
-		"testnet": "access.devnet.nodes.onflow.org:9000",
-		"mainnet": "access.mainnet.nodes.onflow.org:9000"
+		"mainnet": "access.mainnet.nodes.onflow.org:9000",
+		"testnet": "access.devnet.nodes.onflow.org:9000"
 	},
 	"accounts": {
 		"emulator-account": {
@@ -13,45 +16,23 @@
 			}
 		},
 		"testnet-account": {
-			"address": "$FLOW_TESTNET_ADDRESS",
+			"address": "892fa2c8f012194c",
 			"key": {
-				"type": "hex",
-				"index": 0,
-				"signatureAlgorithm": "ECDSA_P256",
-				"hashAlgorithm": "SHA3_256",
-				"privateKey": "$FLOW_TESTNET_PRIVATE_KEY"
-			}
-		}
-	},
-	"contracts": {
-		"AttendanceBadge": {
-			"source": "./cadence/contracts/AttendanceBadge.cdc",
-			"aliases": {
-				"testnet": "$FLOW_TESTNET_ADDRESS",
-				"emulator": "f8d6e0586b0a20c7"
+				"type": "file",
+				"location": "testnet-account.pkey"
 			}
 		}
 	},
 	"deployments": {
-		"testnet": {
-			"testnet-account": [
-				"AttendanceBadge"
-			]
-		},
 		"emulator": {
 			"emulator-account": [
 				"AttendanceBadge"
 			]
+		},
+		"testnet": {
+			"testnet-account": [
+				"AttendanceBadge"
+			]
 		}
-	},
-	"transactions": {
-		"createEvent": "./cadence/transactions/CreateEvent.cdc",
-		"claimBadge": "./cadence/transactions/ClaimBadge.cdc",
-		"submitAIVerification": "./cadence/transactions/SubmitAIVerification.cdc"
-	},
-	"scripts": {
-		"getAIVerification": "./cadence/scripts/GetAIVerification.cdc",
-		"getEvent": "./cadence/scripts/GetEvent.cdc",
-		"getBadgeIDs": "./cadence/scripts/GetBadgeIDs.cdc"
 	}
 }
