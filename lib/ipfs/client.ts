@@ -105,21 +105,7 @@ export async function uploadJSONToFilecoin(
   data: object,
   name: string
 ): Promise<FilecoinUploadResult> {
-  requireApiKey();
-
-  const response = await lighthouse.uploadText(
-    JSON.stringify(data),
-    LIGHTHOUSE_API_KEY,
-    name
-  );
-
-  const cid: string = response.data.Hash;
-  return {
-    cid,
-    url: `${FILECOIN_GATEWAY}${cid}`,
-    size: Number(response.data.Size),
-    name: response.data.Name,
-  };
+  return uploadTextToLighthouse(JSON.stringify(data), name);
 }
 
 /**
@@ -196,6 +182,46 @@ export async function fetchFromFilecoin<T = unknown>(cid: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+// ─── Internal: direct Lighthouse multipart upload ────────────────────────────
+
+/**
+ * Posts text content directly to the Lighthouse upload API as multipart/form-data.
+ * Avoids the SDK's `credentials: 'include'` which is rejected on cross-origin
+ * requests from a Node.js server environment (Next.js API routes).
+ */
+async function uploadTextToLighthouse(
+  content: string,
+  name: string
+): Promise<FilecoinUploadResult> {
+  requireApiKey();
+
+  const form = new FormData();
+  const blob = new Blob([content], { type: 'text/plain' });
+  form.append('file', blob, name);
+
+  const response = await fetch(
+    'https://upload.lighthouse.storage/api/v0/add?cid-version=1',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}` },
+      body: form,
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`[Lighthouse] Upload failed (${response.status}): ${text}`);
+  }
+
+  const data = await response.json() as { Hash: string; Size: string; Name: string };
+  return {
+    cid: data.Hash,
+    url: `${FILECOIN_GATEWAY}${data.Hash}`,
+    size: Number(data.Size),
+    name: data.Name,
+  };
+}
+
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 
 /**
@@ -206,21 +232,7 @@ export async function uploadCSVToFilecoin(
   csvContent: string,
   name: string
 ): Promise<FilecoinUploadResult> {
-  requireApiKey();
-
-  const response = await lighthouse.uploadText(
-    csvContent,
-    LIGHTHOUSE_API_KEY,
-    name
-  );
-
-  const cid: string = response.data.Hash;
-  return {
-    cid,
-    url: `${FILECOIN_GATEWAY}${cid}`,
-    size: Number(response.data.Size),
-    name: response.data.Name,
-  };
+  return uploadTextToLighthouse(csvContent, name);
 }
 
 // ─── Domain helpers ───────────────────────────────────────────────────────────
