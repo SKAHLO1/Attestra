@@ -41,7 +41,7 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
   const { user, userProfile, logout } = useAuth()
   const { address, verified } = useFlowWallet()
   const { claimBadge, loading, error } = useEventOperations()
-  const { badges: userBadges, refetch } = useUserBadges()
+  const { badges: userBadges, loading: badgesLoading, refetch } = useUserBadges()
 
   const [claimCode, setClaimCode] = useState("")
   const [claimedBadges, setClaimedBadges] = useState<ClaimedBadge[]>([])
@@ -93,6 +93,12 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
     setClaimStatus(null)
 
     try {
+      // Wait for badge list to be ready — eligibility checks depend on it
+      if (badgesLoading) {
+        setClaimStatus({ type: 'error', message: 'Loading your badge history, please try again in a moment.' })
+        return
+      }
+
       // Pass existing badges for client-side eligibility logic
       const badgeId = await claimBadge(claimCode, address || undefined, undefined, userBadges)
 
@@ -241,10 +247,18 @@ export default function AttendeePortal({ wallet }: AttendeePortalProps) {
 
                     <Button
                       type="submit"
-                      disabled={loading || !claimCode.trim()}
+                      disabled={loading || badgesLoading || !claimCode.trim()}
                       className="w-full h-14 bg-gray-900 hover:bg-black text-white rounded-2xl font-black uppercase tracking-widest transition-all duration-300 hover:scale-[1.02] shadow-2xl shadow-gray-200"
                     >
-                      {loading ? (
+                      {badgesLoading ? (
+                        <span className="flex items-center gap-2">
+                          <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Loading Badge History...
+                        </span>
+                      ) : loading ? (
                         <span className="flex items-center gap-2">
                           <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
