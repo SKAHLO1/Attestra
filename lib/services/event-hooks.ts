@@ -202,7 +202,11 @@ export function useEventOperations() {
         });
         if (!pinRes.ok) throw new Error(await pinRes.text());
         const ipfsResult = await pinRes.json();
-        console.log('[ClaimBadge] Badge metadata pinned to Filecoin, CID:', ipfsResult.cid);
+        if (ipfsResult.pending) {
+          console.warn('[ClaimBadge] Filecoin unavailable — proceeding without CID');
+        } else {
+          console.log('[ClaimBadge] Badge metadata pinned to Filecoin, CID:', ipfsResult.cid);
+        }
 
         const { getFlowClient } = await import('@/lib/flow/client');
         const flowClient = getFlowClient();
@@ -227,7 +231,7 @@ export function useEventOperations() {
         const flowTx = await flowClient.claimBadge(
           claimCodeData.eventId,
           claimCode,
-          ipfsResult.cid
+          ipfsResult.cid ?? ''
         );
         aleoTxId = flowTx.transactionId;
         console.log('[ClaimBadge] Badge claimed on Flow! TX:', aleoTxId);
