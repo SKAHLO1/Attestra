@@ -294,7 +294,7 @@ export default function EventList({ events, onEventUpdated }: EventListProps) {
                               <div>
                                 <span className="text-[9px] font-black text-gray-400 uppercase">Filecoin Artifact</span>
                                 <a
-                                  href={`https://gateway.lighthouse.storage/ipfs/${aiState.filecoinCid}`}
+                                  href={`https://docs.filecoin.cloud`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="block text-[11px] font-mono text-purple-600 hover:underline break-all mt-0.5"

@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       msg.includes('network');
 
     if (isNetworkError) {
-      console.warn('[/api/pin] Lighthouse unreachable — returning pending stub:', msg);
+      console.warn('[/api/pin] Filecoin/Synapse unreachable — returning pending stub:', msg);
       return NextResponse.json({ cid: null, url: null, size: 0, name: '', pending: true });
     }
 

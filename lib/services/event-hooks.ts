@@ -181,32 +181,9 @@ export function useEventOperations() {
       let aleoTxId = null;
 
       // Flow transaction is mandatory — badge claim always requires 3 FLOW fee
+      // Filecoin pin runs AFTER the Flow tx so the wallet popup is instant
       try {
         console.log('[ClaimBadge] Initiating Flow badge claim...');
-
-        // Pin badge metadata server-side so LIGHTHOUSE_API_KEY stays off the client
-        const pinRes = await fetch('/api/pin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'badge',
-            data: {
-              eventId: claimCodeData.eventId,
-              eventName: eventData?.name || 'Unknown Event',
-              attendeeId: user.uid,
-              claimCode: claimCode,
-              claimedAt: new Date().toISOString(),
-              category: eventData?.category || 'Conference',
-            },
-          }),
-        });
-        if (!pinRes.ok) throw new Error(await pinRes.text());
-        const ipfsResult = await pinRes.json();
-        if (ipfsResult.pending) {
-          console.warn('[ClaimBadge] Filecoin unavailable — proceeding without CID');
-        } else {
-          console.log('[ClaimBadge] Badge metadata pinned to Filecoin, CID:', ipfsResult.cid);
-        }
 
         const { getFlowClient } = await import('@/lib/flow/client');
         const flowClient = getFlowClient();
@@ -228,10 +205,11 @@ export function useEventOperations() {
         }
 
         // Submit on-chain tx — wallet will show confirmation popup with 3 FLOW fee
+        // Pass empty CID for now; Filecoin pin runs in background after seal
         const flowTx = await flowClient.claimBadge(
           claimCodeData.eventId,
           claimCode,
-          ipfsResult.cid ?? ''
+          ''
         );
         aleoTxId = flowTx.transactionId;
         console.log('[ClaimBadge] Badge claimed on Flow! TX:', aleoTxId);
@@ -240,19 +218,48 @@ export function useEventOperations() {
         throw flowError;
       }
 
-      // Create badge record in Firebase
+      // Create badge record in Firebase (CID filled in asynchronously below)
       const badgesRef = collection(db, 'badges');
       const badgeDoc = await addDoc(badgesRef, {
         userId: user.uid,
         eventId: claimCodeData.eventId,
         eventName: eventData?.name || 'Unknown Event',
-        attendeeId: user.uid, // Unified field name
+        attendeeId: user.uid,
         claimCode: claimCode,
         claimed: true,
         claimedAt: serverTimestamp(),
         flowTxId: aleoTxId,
         issuedAt: serverTimestamp(),
+        category: eventData?.category || 'Conference',
       });
+
+      // Pin badge metadata to Filecoin in the background — non-blocking
+      fetch('/api/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'badge',
+          data: {
+            eventId: claimCodeData.eventId,
+            eventName: eventData?.name || 'Unknown Event',
+            attendeeId: user.uid,
+            claimCode: claimCode,
+            claimedAt: new Date().toISOString(),
+            category: eventData?.category || 'Conference',
+            flowTxId: aleoTxId,
+          },
+        }),
+      })
+        .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+        .then(ipfsResult => {
+          if (ipfsResult.pending) {
+            console.warn('[ClaimBadge] Filecoin unavailable — badge CID not stored');
+            return;
+          }
+          console.log('[ClaimBadge] Badge metadata pinned to Filecoin, CID:', ipfsResult.cid);
+          updateDoc(doc(db, 'badges', badgeDoc.id), { ipfsCid: ipfsResult.cid });
+        })
+        .catch(err => console.warn('[ClaimBadge] Background Filecoin pin failed:', err));
 
       // Mark claim code as used
       await updateDoc(doc(db, 'claimCodes', claimCodeDoc.id), {
@@ -302,7 +309,7 @@ export function useEventOperations() {
         const cid = filecoinCids?.[i];
         if (cid) {
           doc.filecoinCid = cid;
-          doc.filecoinUrl = `https://gateway.lighthouse.storage/ipfs/${cid}`;
+          doc.filecoinUrl = `filecoin://synapse/${cid}`;
         }
         return addDoc(claimCodesRef, doc);
       });

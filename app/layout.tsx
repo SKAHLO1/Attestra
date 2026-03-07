@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AleoWalletProvider } from "@/lib/wallet-adapter-context"
 import { AuthProvider } from "@/lib/firebase/auth-context"
+import { EVMWalletProvider } from "@/lib/evm-wallet-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 
@@ -34,10 +35,12 @@ export default function RootLayout({
       <body className={`font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <AuthProvider>
-            <AleoWalletProvider>
-              {children}
-              <Toaster />
-            </AleoWalletProvider>
+            <EVMWalletProvider>
+              <AleoWalletProvider>
+                {children}
+                <Toaster />
+              </AleoWalletProvider>
+            </EVMWalletProvider>
           </AuthProvider>
         </ThemeProvider>
         <Analytics />

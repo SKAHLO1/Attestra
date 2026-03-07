@@ -93,7 +93,7 @@ export default function EventForm({ onSubmit, onSuccess }: EventFormProps) {
 
       // Step 3: Flow on-chain registration (mandatory — 100 FLOW fee)
       try {
-        // Pin metadata server-side so LIGHTHOUSE_API_KEY stays off the client
+        // Pin metadata server-side so SYNAPSE_PRIVATE_KEY stays off the client
         const pinRes = await fetch('/api/pin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -6,10 +6,10 @@
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.1-06B6D4?style=for-the-badge&logo=tailwindcss)
 ![Flow](https://img.shields.io/badge/Flow-Testnet-00EF8B?style=for-the-badge)
 ![Firebase](https://img.shields.io/badge/Firebase-10.7-orange?style=for-the-badge&logo=firebase)
-![Filecoin](https://img.shields.io/badge/Filecoin-Lighthouse-0090FF?style=for-the-badge)
+![Filecoin](https://img.shields.io/badge/Filecoin-Synapse_SDK-0090FF?style=for-the-badge)
 ![Gemini](https://img.shields.io/badge/Gemini-Flash%202.0-4285F4?style=for-the-badge&logo=google)
 
-**Attestra** is a decentralized proof-of-attendance protocol built on the [Flow](https://flow.com) blockchain with AI-powered attendance verification. Event organizers create on-chain events, generate QR code claim codes, and run Gemini AI verification on event photos. Attendees claim verifiable badges secured by Flow Cadence smart contracts, with metadata pinned to Filecoin via Lighthouse for permanent decentralized storage. Gated events enforce ZK-style eligibility rules — requiring attendees to hold a badge from a prerequisite event or meet a minimum reputation level before claiming.
+**Attestra** is a decentralized proof-of-attendance protocol built on the [Flow](https://flow.com) blockchain with AI-powered attendance verification. Event organizers create on-chain events, generate QR code claim codes, and run Gemini AI verification on event photos. Attendees claim verifiable badges secured by Flow Cadence smart contracts, with metadata pinned to Filecoin via the Synapse SDK for permanent decentralized storage. Gated events enforce ZK-style eligibility rules — requiring attendees to hold a badge from a prerequisite event or meet a minimum reputation level before claiming.
 
 ---
 
@@ -20,8 +20,10 @@
 - **ZK-Gated Events** — Require attendees to hold a prerequisite badge or reach a minimum reputation level (1/3/5 badges)
 - **QR Code Generation** — Bulk-generate unique claim codes and download QR code batches; a CSV manifest is pinned to Filecoin per batch
 - **AI Verification** — Run Gemini Flash 2.0 vision analysis on event photos; the proof hash is signed by an oracle account and committed on-chain
-- **Organizer Dashboard** — View all events, live badge counts, active/inactive status toggle, and attendee list per event
-- **Filecoin Metadata** — Event metadata pinned to Filecoin via Lighthouse using path-style naming: `attestra/{eventId}/event-metadata--{slug}.json`
+- **Organizer Dashboard** — View all events, live badge counts, active/inactive status toggle, and attendee list per event; tabbed Events / Filecoin Billing view
+- **Filecoin Metadata** — Event metadata pinned to Filecoin via Synapse SDK using path-style naming: `attestra/{eventId}/event-metadata--{slug}.json`
+- **Filecoin Billing** — Built-in USDFC balance monitor with MetaMask (EVM wallet) connect; organizers deposit USDFC directly from the browser via `depositWithPermitAndApproveOperator` — no CLI needed post-deploy
+- **CSV Export with CIDs** — Downloading claim codes produces a CSV with `Claim Code, QR Code URL, Event Name, Status, Filecoin CID, Filecoin URL` columns
 
 ### For Attendees
 - **Manual Badge Claiming** — Enter a claim code to mint a badge on Flow testnet (3 FLOW fee)
@@ -60,7 +62,7 @@
 │  │  Auth       │    └──────────┬──────────────┬────────────-┘   │
 │  └─────────────┘               │              │                  │
 │                     ┌──────────▼──┐  ┌────────▼─────────────┐   │
-│                     │  Lighthouse  │  │  Gemini Flash 2.0    │   │
+│                     │  Synapse SDK │  │  Gemini Flash 2.0    │   │
 │                     │  (Filecoin)  │  │  AI Verification     │   │
 │                     └─────────────┘  └──────────┬───────────┘   │
 │                                                 │                │
@@ -82,9 +84,9 @@
 ### Data Flow — Badge Claiming
 1. Attendee enters claim code → Firestore validates code is unused
 2. ZK eligibility checks: prerequisite badge ownership + reputation level
-3. Badge metadata pinned to Filecoin as CSV (non-fatal if Lighthouse unreachable)
-4. FCL wallet popup → attendee pays 3 FLOW → `claimBadge` transaction sealed on Flow
-5. Firebase badge record written only after successful on-chain tx
+3. FCL wallet popup → attendee pays 3 FLOW → `claimBadge` transaction sealed on Flow *(Filecoin pin is intentionally deferred so the wallet popup is instant)*
+4. Firebase badge record written (with `category` field) immediately after on-chain tx
+5. Badge metadata pinned to Filecoin as CSV via Synapse SDK **in the background** (non-blocking, non-fatal); CID written back to Firebase badge doc via `updateDoc`
 
 ### Data Flow — AI Verification
 1. Organizer triggers "AI Verify" from the event dashboard, provides photo URLs
@@ -104,11 +106,12 @@
 | Language | [TypeScript 5](https://www.typescriptlang.org/) |
 | Styling | [TailwindCSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
 | Blockchain | [Flow Testnet](https://flow.com) — Cadence 1.0 |
-| Wallet | [Flow Client Library (FCL)](https://developers.flow.com/tools/clients/fcl-js) + WalletConnect |
+| Wallet (Flow) | [Flow Client Library (FCL)](https://developers.flow.com/tools/clients/fcl-js) + WalletConnect |
+| Wallet (EVM) | [viem](https://viem.sh/) `createWalletClient` + MetaMask (`window.ethereum`) |
 | Smart Contract | `AttendanceBadge.cdc` — Cadence 1.0 |
 | Database | [Firebase Firestore](https://firebase.google.com/docs/firestore) |
 | Auth | [Firebase Authentication](https://firebase.google.com/docs/auth) |
-| Decentralized Storage | [Lighthouse](https://lighthouse.storage) (Filecoin) |
+| Decentralized Storage | [Filecoin Synapse SDK](https://docs.filecoin.cloud) (`@filoz/synapse-sdk`) |
 | AI Verification | [Gemini Flash 2.0](https://ai.google.dev/) (`gemini-2.0-flash`) |
 | Icons | [Lucide React](https://lucide.dev/) |
 | Deployment | [Vercel](https://vercel.com) |
@@ -122,8 +125,11 @@ attestra/
 ├── app/
 │   ├── api/
 │   │   ├── pin/route.ts          # POST — pin event/badge/QR metadata to Filecoin
-│   │   └── verify/route.ts       # POST — run Gemini AI verification pipeline
-│   ├── layout.tsx                # Root layout with FCL config and Firebase providers
+│   │   ├── verify/route.ts       # POST — run Gemini AI verification pipeline
+│   │   └── synapse/
+│   │       ├── balance/route.ts  # GET  — USDFC deposited + wallet balance for server key
+│   │       └── deposit/route.ts  # POST — validate deposit amount, return chain info
+│   ├── layout.tsx                # Root layout with FCL, Firebase, and EVM wallet providers
 │   └── page.tsx                  # Single-page app with role-based view routing
 │
 ├── cadence/
@@ -143,7 +149,8 @@ attestra/
 │   ├── badge-portfolio.tsx       # Badge gallery with Filecoin/Flow details
 │   ├── event-form.tsx            # Create event form with ZK-eligibility settings
 │   ├── event-list.tsx            # Organizer event list with AI Verify dialog
-│   ├── organizer-dashboard.tsx   # Top-level organizer view
+│   ├── filecoin-billing.tsx      # EVM wallet connect + USDFC balance + deposit UI
+│   ├── organizer-dashboard.tsx   # Top-level organizer view (Events + Filecoin tabs)
 │   ├── qr-code-generator.tsx     # Bulk QR code generation + Filecoin CSV manifest
 │   ├── pricing.tsx               # Pricing tiers
 │   └── onboarding/               # Landing page sections (how it works, use cases)
@@ -151,6 +158,7 @@ attestra/
 ├── lib/
 │   ├── ai/
 │   │   └── verification-agent.ts # Gemini Flash integration + oracle pipeline
+│   ├── evm-wallet-context.tsx    # EVM wallet context (MetaMask / window.ethereum + viem)
 │   ├── firebase/
 │   │   ├── config.ts             # Firebase app initialization
 │   │   └── auth-context.tsx      # Auth provider and useAuth hook
@@ -159,7 +167,7 @@ attestra/
 │   │   ├── hooks.ts              # useFlowWallet hook
 │   │   └── types.ts              # Flow type definitions
 │   ├── ipfs/
-│   │   └── client.ts             # Lighthouse upload helpers (JSON, CSV, buffer)
+│   │   └── client.ts             # Synapse SDK upload helpers (JSON, CSV, buffer)
 │   ├── services/
 │   │   ├── event-hooks.ts        # useEventOperations, useEventInfo hooks
 │   │   ├── badge-hooks.ts        # useUserBadges hook
@@ -168,7 +176,9 @@ attestra/
 │   └── config.ts                 # App-level config helpers
 │
 └── scripts/
-    └── generate-claim-codes.js   # CLI script to bulk-generate claim codes
+    ├── generate-claim-codes.js   # CLI script to bulk-generate claim codes
+    ├── synapse-setup.mjs         # One-time Synapse payment approval (USDFC deposit + approveService)
+    └── synapse-verify.mjs        # Verify a Filecoin upload by CID, or run a test round-trip
 ```
 
 ---
@@ -181,7 +191,8 @@ attestra/
   - Organizers need **100 FLOW** to create an event
   - Attendees need **3 FLOW** to claim a badge
 - **Firebase Project** — Free Spark plan is sufficient
-- **Lighthouse account** — Free tier at [lighthouse.storage](https://lighthouse.storage)
+- **Filecoin Synapse wallet** — EVM-compatible private key (`SYNAPSE_PRIVATE_KEY`) with USDFC tokens for server-side upload fees; see [docs.filecoin.cloud](https://docs.filecoin.cloud/getting-started/)
+- **MetaMask** (optional, for organizers) — EVM wallet for topping up USDFC balance directly from the Filecoin Billing tab in the organizer dashboard
 - **Gemini API key** — Free at [Google AI Studio](https://aistudio.google.com) (no credit card required)
 - **Flow CLI** — Required for contract deployment: see [docs](https://developers.flow.com/tools/flow-cli)
 
@@ -217,7 +228,17 @@ flow project deploy --network testnet
 
 Copy the deployed contract address into `NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS` in `.env.local`.
 
-### 4. Run the Development Server
+### 4. Run the Synapse One-Time Setup
+
+Deposit USDFC into the Synapse payment contract and approve the warm storage operator. Only needs to be done once per wallet:
+
+```bash
+node scripts/synapse-setup.mjs
+```
+
+Alternatively, organizers can top up USDFC at any time from the **Filecoin Billing** tab in the organizer dashboard by connecting MetaMask.
+
+### 5. Run the Development Server
 
 ```bash
 npm run dev
@@ -263,13 +284,14 @@ FLOW_ORACLE_PRIVATE_KEY=your_oracle_private_key_hex
 
 Generate a key pair with `flow keys generate` and fund both accounts from the [testnet faucet](https://testnet-faucet.onflow.org).
 
-### Filecoin — Lighthouse
+### Filecoin — Synapse SDK
 
 ```env
-LIGHTHOUSE_API_KEY=       # https://lighthouse.storage — free tier
+SYNAPSE_PRIVATE_KEY=0x...  # EVM wallet private key (hex) with USDFC tokens
+# SYNAPSE_RPC_URL=          # Optional: override default Filecoin RPC endpoint
 ```
 
-> **Note:** Do NOT prefix with `NEXT_PUBLIC_`. This key is server-side only.
+> **Note:** Do NOT prefix with `NEXT_PUBLIC_`. This key is server-side only. See [docs.filecoin.cloud/getting-started](https://docs.filecoin.cloud/getting-started/) to fund your wallet with USDFC.
 
 ### AI Verification — Gemini
 
@@ -328,7 +350,7 @@ event AIVerificationSubmitted(eventId: String, oracle: Address, proofHash: Strin
 
 ### `POST /api/pin`
 
-Pins metadata to Filecoin via Lighthouse. Server-side only — keeps `LIGHTHOUSE_API_KEY` off the client.
+Pins metadata to Filecoin via Synapse SDK. Server-side only — keeps `SYNAPSE_PRIVATE_KEY` off the client. Upload fees are paid from the server wallet's deposited USDFC balance.
 
 **Request body:**
 
@@ -346,9 +368,9 @@ Pins metadata to Filecoin via Lighthouse. Server-side only — keeps `LIGHTHOUSE
 **Response:**
 
 ```jsonc
-{ "cid": "bafyrei...", "url": "https://gateway.lighthouse.storage/ipfs/bafyrei...", "size": 512, "name": "attestra/..." }
+{ "cid": "bafkzcib...", "url": "filecoin://synapse/bafkzcib...", "size": 512, "name": "attestra/..." }
 
-// On Lighthouse network error (non-fatal — Flow tx still proceeds):
+// On Synapse network error (non-fatal — Flow tx still proceeds):
 { "cid": null, "url": null, "size": 0, "name": "", "pending": true }
 ```
 
@@ -360,6 +382,36 @@ attestra/{eventId}/badges/{claimCode}.csv
 attestra/{eventId}/qr-codes/batch-{timestamp}--{slug}.csv
 attestra/{eventId}/ai-verification.json
 ```
+
+---
+
+### `GET /api/synapse/balance`
+
+Returns the USDFC balance state for the server wallet. Used by the Filecoin Billing tab.
+
+**Response:**
+
+```jsonc
+{
+  "serverWalletAddress": "0x...",
+  "walletBalance": "2500000000000000000",       // raw bigint string
+  "walletBalanceFormatted": "2.5",              // USDFC decimal
+  "depositedBalance": "1800000000000000000",
+  "depositedBalanceFormatted": "1.8",
+  "serviceApproved": true,
+  "lowBalance": false                           // true when deposited < 0.5 USDFC
+}
+```
+
+---
+
+### `POST /api/synapse/deposit`
+
+Validates a deposit amount and returns chain metadata. The actual `depositWithPermitAndApproveOperator` transaction is signed and submitted **client-side** via the organizer's MetaMask wallet — the server key is not used for deposits.
+
+**Request body:** `{ "amount": "2.5" }`
+
+**Response:** `{ "ok": true, "parsedAmount": "...", "serverWalletAddress": "0x...", "chainId": 314159, ... }`
 
 ---
 
@@ -464,7 +516,7 @@ FLOW_TESTNET_ADDRESS
 FLOW_TESTNET_PRIVATE_KEY
 FLOW_ORACLE_ADDRESS
 FLOW_ORACLE_PRIVATE_KEY
-LIGHTHOUSE_API_KEY
+SYNAPSE_PRIVATE_KEY
 GEMINI_API_KEY
 NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT
 ```
@@ -473,7 +525,7 @@ NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT
 
 Vercel auto-deploys on every push to `main`.
 
-> **Important:** `@onflow/fcl` and `@lighthouse-web3/sdk` are listed in `serverExternalPackages` in `next.config.mjs` — required for Vercel serverless functions to load them at runtime instead of bundling them.
+> **Important:** `@onflow/fcl` and `@filoz/synapse-sdk` are listed in `serverExternalPackages` in `next.config.mjs` — required for Vercel serverless functions to load them at runtime instead of bundling them.
 
 ---
 
@@ -483,6 +535,24 @@ Vercel auto-deploys on every push to `main`.
 
 ```bash
 npm run generate:codes
+```
+
+### Verify Filecoin Storage (CLI)
+
+```bash
+# Run a test upload + round-trip
+node scripts/synapse-verify.mjs
+
+# Verify a specific CID
+node scripts/synapse-verify.mjs <PieceCID>
+```
+
+### Synapse Initial Setup (CLI)
+
+Run once after configuring `SYNAPSE_PRIVATE_KEY` to deposit USDFC and approve the warm storage operator:
+
+```bash
+node scripts/synapse-setup.mjs
 ```
 
 ### Firestore Security Rules
@@ -514,7 +584,7 @@ The oracle account is a dedicated Flow testnet account whose private key is stor
 
 ## 📦 Filecoin Storage
 
-All persistent artifacts are stored on Filecoin via [Lighthouse](https://lighthouse.storage).
+All persistent artifacts are stored on Filecoin via the [Synapse SDK](https://docs.filecoin.cloud) (`@filoz/synapse-sdk`). Each upload returns a PieceCID verified on-chain via PDP (Proof of Data Possession) proofs.
 
 | Artifact | Format | Path |
 |---|---|---|
@@ -523,11 +593,33 @@ All persistent artifacts are stored on Filecoin via [Lighthouse](https://lightho
 | QR code batch manifest | CSV | `attestra/{eventId}/qr-codes/batch-{timestamp}--{slug}.csv` |
 | AI verification artifact | JSON | `attestra/{eventId}/ai-verification.json` |
 
-Verify any CID at:
+Retrieve any piece using the Synapse SDK:
 
+```ts
+const bytes = await synapse.storage.download({ pieceCid: '<PieceCID>' });
 ```
-https://gateway.lighthouse.storage/ipfs/<CID>
+
+### Verifying uploads
+
+```bash
+# Test upload + round-trip verification (no args)
+node scripts/synapse-verify.mjs
+
+# Verify a specific PieceCID
+node scripts/synapse-verify.mjs bafkzcib...
 ```
+
+### Who pays for Filecoin storage
+
+| Action | Payer | Method |
+|---|---|---|
+| Event metadata pin | **Organizer** (server wallet) | `SYNAPSE_PRIVATE_KEY` auto-signs server-side |
+| QR code batch manifest | **Organizer** (server wallet) | Same |
+| Badge metadata pin | **Organizer** (server wallet) | Background, non-blocking |
+| AI verification artifact | **Organizer** (server wallet) | Same |
+| Badge claim on Flow | **Attendee** | 3 FLOW via FCL wallet popup |
+
+Organizers top up the server wallet's deposited USDFC balance from the **Filecoin Billing** tab in the organizer dashboard — connects MetaMask, shows live balance, and deposits via `depositWithPermitAndApproveOperator` in one MetaMask transaction. Low balance warning triggers at < 0.5 USDFC.
 
 ---
 
@@ -540,7 +632,7 @@ MIT
 ## 🙏 Acknowledgements
 
 - [Flow Blockchain](https://flow.com) — Cadence smart contracts and FCL
-- [Lighthouse / Filecoin](https://lighthouse.storage) — Decentralized storage
+- [Filecoin Synapse SDK](https://docs.filecoin.cloud) — Decentralized storage
 - [Google Gemini](https://ai.google.dev/) — AI vision verification
 - [Firebase](https://firebase.google.com) — Authentication and Firestore
 - [shadcn/ui](https://ui.shadcn.com/) — UI component library

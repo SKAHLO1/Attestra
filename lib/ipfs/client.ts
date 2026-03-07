@@ -1,30 +1,43 @@
 /**
  * Filecoin Storage Client for Attestra
  *
- * Uses Lighthouse SDK (@lighthouse-web3/sdk) — the officially recommended
- * Filecoin storage onramp per docs.filecoin.io/builder-cookbook/data-storage/store-data
+ * Uses Filecoin Synapse SDK (@filoz/synapse-sdk) — the official Filecoin Onchain Cloud SDK.
  *
- * Lighthouse submits every upload to the Filecoin blockchain via deal aggregation.
- * Multiple small files are bundled into 32/64 GiB sectors and stored by Filecoin
- * Storage Providers. Deals are renewable and repaired automatically (RaaS).
- * Each CID can be verified on-chain via lighthouse.dealStatus(cid).
+ * Synapse stores data with multi-copy durability across independent service providers.
+ * Each upload returns a PieceCID (content-addressed identifier) used for retrieval.
+ * Data is verified on-chain via PDP (Proof of Data Possession) proofs.
  *
- * Gateway : https://gateway.lighthouse.storage/ipfs/<CID>
- * Explorer: https://www.lighthouse.storage/dashboard
+ * Docs:    https://docs.filecoin.cloud
+ * SDK:     https://github.com/FilOzone/synapse-sdk
  */
 
-import lighthouse from '@lighthouse-web3/sdk';
+import { Synapse, calibration } from '@filoz/synapse-sdk';
+import { http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 
-const LIGHTHOUSE_API_KEY = process.env.LIGHTHOUSE_API_KEY as string;
-const FILECOIN_GATEWAY = 'https://gateway.lighthouse.storage/ipfs/';
+const SYNAPSE_PRIVATE_KEY = process.env.SYNAPSE_PRIVATE_KEY as string;
+const SYNAPSE_RPC_URL = process.env.SYNAPSE_RPC_URL || 'https://api.calibration.node.glif.io/rpc/v1';
 
-function requireApiKey(): void {
-  if (!LIGHTHOUSE_API_KEY) {
+function requirePrivateKey(): void {
+  if (!SYNAPSE_PRIVATE_KEY) {
     throw new Error(
-      '[Filecoin] LIGHTHOUSE_API_KEY is not set. ' +
-      'Get a free key at https://lighthouse.storage and add LIGHTHOUSE_API_KEY to .env.local'
+      '[Filecoin] SYNAPSE_PRIVATE_KEY is not set. ' +
+      'Add SYNAPSE_PRIVATE_KEY (hex, with 0x prefix) to .env.local. ' +
+      'See https://docs.filecoin.cloud/getting-started/'
     );
   }
+}
+
+async function getSynapse(): Promise<Synapse> {
+  requirePrivateKey();
+  const privateKey = SYNAPSE_PRIVATE_KEY.startsWith('0x')
+    ? SYNAPSE_PRIVATE_KEY as `0x${string}`
+    : `0x${SYNAPSE_PRIVATE_KEY}` as `0x${string}`;
+  return Synapse.create({
+    account: privateKeyToAccount(privateKey),
+    chain: calibration,
+    transport: http(SYNAPSE_RPC_URL),
+  });
 }
 
 // ─── Return types ─────────────────────────────────────────────────────────────
@@ -92,147 +105,117 @@ export interface AIVerificationArtifact {
 // ─── Core upload functions ─────────────────────────────────────────────────────
 
 /**
- * Upload a JSON object to Filecoin via Lighthouse.
- *
- * Internally calls lighthouse.uploadText() which:
- *   1. Uploads the serialised text to Lighthouse nodes
- *   2. Registers the CID for Filecoin deal aggregation
- *   3. Filecoin Storage Providers pick up the aggregated deal and store it on-chain
- *
- * Returns the CID that is verifiable on the Filecoin blockchain.
+ * Upload a JSON object to Filecoin via Synapse SDK.
+ * Returns a FilecoinUploadResult with the PieceCID as the content identifier.
  */
 export async function uploadJSONToFilecoin(
   data: object,
   name: string
 ): Promise<FilecoinUploadResult> {
-  return uploadTextToLighthouse(JSON.stringify(data), name);
+  return uploadBytesToSynapse(
+    new TextEncoder().encode(JSON.stringify(data)),
+    name,
+    'application/json'
+  );
 }
 
 /**
- * Upload a browser File/Blob to Filecoin via Lighthouse.
- *
- * Uses lighthouse.uploadBuffer() which accepts a Blob/Buffer directly,
- * making it compatible with the browser environment (no Node.js fs path needed).
- * cidVersion 1 = CIDv1 (base32), which is the current Filecoin standard.
+ * Upload a browser File/Blob to Filecoin via Synapse SDK.
  */
 export async function uploadFileToFilecoin(
   file: File
 ): Promise<FilecoinUploadResult> {
-  requireApiKey();
-
   const buffer = await file.arrayBuffer();
-  const blob = new Blob([buffer], { type: file.type });
-
-  const response = await lighthouse.uploadBuffer(
-    blob,
-    LIGHTHOUSE_API_KEY
-  );
-
-  const cid: string = response.data.Hash;
-  return {
-    cid,
-    url: `${FILECOIN_GATEWAY}${cid}`,
-    size: Number(response.data.Size),
-    name: response.data.Name,
-  };
+  return uploadBytesToSynapse(new Uint8Array(buffer), file.name, file.type);
 }
 
 // ─── Deal verification ─────────────────────────────────────────────────────────
 
 /**
- * Query on-chain Filecoin deal status for a CID using the Lighthouse SDK.
- * Returns the list of Storage Providers, deal IDs, start/end epochs, and status.
- * This data is sourced directly from the Filecoin blockchain.
+ * Returns on-chain storage info for a PieceCID via Synapse.
+ * The Synapse SDK verifies storage via PDP proofs rather than deal status queries.
+ * This function returns a stub compatible with the existing interface.
  */
 export async function getFilecoinDealStatus(cid: string): Promise<FilecoinDealStatus> {
-  const response = await lighthouse.dealStatus(cid);
-
-  return {
-    cid,
-    deals: (response.data ?? []).map((d) => ({
-      chainDealID: d.chainDealID,
-      storageProvider: d.storageProvider,
-      dealStatus: d.dealStatus,
-      miner: d.miner,
-      startEpoch: d.startEpoch,
-      endEpoch: d.endEpoch,
-      pieceCID: d.pieceCID,
-      pieceSize: d.pieceSize,
-    })),
-  };
+  return { cid, deals: [] };
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 /**
- * Returns the public Lighthouse gateway URL for a Filecoin-backed CID.
+ * Returns a reference URL for a Synapse PieceCID.
+ * Synapse data is retrieved via the SDK (synapse.storage.download); this URL
+ * serves as a canonical reference identifier for the stored piece.
  */
 export function getFilecoinUrl(cid: string): string {
-  return `${FILECOIN_GATEWAY}${cid}`;
+  return `filecoin://synapse/${cid}`;
 }
 
 /**
- * Fetch and deserialise JSON stored on Filecoin via the Lighthouse gateway.
+ * Fetch and deserialise JSON stored on Filecoin via Synapse SDK download.
  */
 export async function fetchFromFilecoin<T = unknown>(cid: string): Promise<T> {
-  const response = await fetch(getFilecoinUrl(cid));
-  if (!response.ok) {
-    throw new Error(`[Filecoin] Failed to fetch CID ${cid}: ${response.statusText}`);
-  }
-  return response.json() as Promise<T>;
+  const synapse = await getSynapse();
+  const bytes = await synapse.storage.download({ pieceCid: cid });
+  const text = new TextDecoder().decode(bytes);
+  return JSON.parse(text) as T;
 }
 
-// ─── Internal: direct Lighthouse multipart upload ────────────────────────────
+// ─── Internal: Synapse upload ─────────────────────────────────────────────────
 
 /**
- * Posts text content directly to the Lighthouse upload API as multipart/form-data.
- * Avoids the SDK's `credentials: 'include'` which is rejected on cross-origin
- * requests from a Node.js server environment (Next.js API routes).
+ * Uploads raw bytes to Filecoin via the Synapse SDK.
+ * The SDK handles provider selection, multi-copy replication, and on-chain commit.
+ * Piece metadata (filename, contentType) is attached for organisation.
  */
-async function uploadTextToLighthouse(
-  content: string,
-  name: string
+async function uploadBytesToSynapse(
+  bytes: Uint8Array,
+  name: string,
+  contentType: string
 ): Promise<FilecoinUploadResult> {
-  requireApiKey();
+  requirePrivateKey();
 
-  const form = new FormData();
-  const blob = new Blob([content], { type: 'text/plain' });
-  form.append('file', blob, name);
+  const synapse = await getSynapse();
 
-  const response = await fetch(
-    'https://upload.lighthouse.storage/api/v0/add?cid-version=1',
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${LIGHTHOUSE_API_KEY}` },
-      body: form,
-    }
-  );
+  const { pieceCid, size, copies, failures } = await synapse.storage.upload(bytes, {
+    pieceMetadata: {
+      filename: name,
+      contentType,
+    },
+  });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`[Lighthouse] Upload failed (${response.status}): ${text}`);
+  if (copies.length === 0) {
+    throw new Error(`[Synapse] Upload failed — no copies stored. Failures: ${JSON.stringify(failures)}`);
   }
 
-  const data = await response.json() as { Hash: string; Size: string; Name: string };
+  if (failures.length > 0) {
+    console.warn(`[Synapse] Upload partially succeeded: ${copies.length} copies stored, ${failures.length} failed`);
+  }
+
+  const cidStr = pieceCid.toString();
+  console.log(`[Synapse] ✅ Stored on Filecoin — PieceCID: ${cidStr} | copies: ${copies.length} | size: ${size} bytes | name: ${name}`);
   return {
-    cid: data.Hash,
-    url: `${FILECOIN_GATEWAY}${data.Hash}`,
-    size: Number(data.Size),
-    name: data.Name,
+    cid: cidStr,
+    url: getFilecoinUrl(cidStr),
+    size,
+    name,
   };
 }
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 
 /**
- * Upload a CSV string to Filecoin via Lighthouse.
- * Uses uploadText under the hood — CSV is plain text with a .csv extension.
+ * Upload a CSV string to Filecoin via Synapse SDK.
  */
 export async function uploadCSVToFilecoin(
   csvContent: string,
   name: string
 ): Promise<FilecoinUploadResult> {
-  return uploadTextToLighthouse(csvContent, name);
+  return uploadBytesToSynapse(
+    new TextEncoder().encode(csvContent),
+    name,
+    'text/csv'
+  );
 }
 
 // ─── Domain helpers ───────────────────────────────────────────────────────────
@@ -314,24 +297,13 @@ export async function pinQRCode(
   claimCode: string,
   eventId: string
 ): Promise<FilecoinUploadResult> {
-  requireApiKey();
+  requirePrivateKey();
 
   const response = await fetch(qrImageUrl);
   if (!response.ok) {
     throw new Error(`[Filecoin] Failed to fetch QR image: ${response.statusText}`);
   }
-  const blob = await response.blob();
-
-  // Wrap as a named File so Lighthouse records the filename in the dashboard
+  const arrayBuffer = await response.arrayBuffer();
   const filename = `attestra/${eventId}/qr-codes/${claimCode}.png`;
-  const namedFile = new File([blob], filename, { type: 'image/png' });
-
-  const upload = await lighthouse.uploadBuffer(namedFile as any, LIGHTHOUSE_API_KEY);
-  const cid: string = upload.data.Hash;
-  return {
-    cid,
-    url: `${FILECOIN_GATEWAY}${cid}`,
-    size: Number(upload.data.Size),
-    name: filename,
-  };
+  return uploadBytesToSynapse(new Uint8Array(arrayBuffer), filename, 'image/png');
 }

@@ -12,8 +12,8 @@ export const config = {
     walletDiscovery: process.env.NEXT_PUBLIC_FLOW_WALLET_DISCOVERY || 'https://fcl-discovery.onflow.org/testnet/authn',
   },
   filecoin: {
-    gateway: 'https://gateway.lighthouse.storage/ipfs/',
-    lighthouseApiKey: process.env.LIGHTHOUSE_API_KEY || '',
+    synapsePrivateKey: process.env.SYNAPSE_PRIVATE_KEY || '',
+    synapseRpcUrl: process.env.SYNAPSE_RPC_URL || 'https://api.node.glif.io/rpc/v1',
   },
   ai: {
     verificationEndpoint: process.env.NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT || '/api/verify',

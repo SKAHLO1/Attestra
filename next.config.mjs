@@ -21,7 +21,7 @@ const nextConfig = {
     ];
   },
   // Keep @onflow/fcl as a server external package to avoid bundling issues
-  serverExternalPackages: ['@onflow/fcl', '@lighthouse-web3/sdk'],
+  serverExternalPackages: ['@onflow/fcl', '@filoz/synapse-sdk'],
 }
 
 export default nextConfig
