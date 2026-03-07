@@ -148,13 +148,15 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
         return
       }
 
-      // Generate CSV content with claim codes and QR URLs
-      const csvRows = ['Claim Code,QR Code URL,Event Name,Status']
-      
+      // Generate CSV content with claim codes, QR URLs, and Filecoin CIDs
+      const csvRows = ['Claim Code,QR Code URL,Event Name,Status,Filecoin CID,Filecoin URL']
+
       querySnapshot.docs.forEach((doc) => {
         const data = doc.data()
         const claimCode = data.code
         const used = data.used || false
+        const filecoinCid = data.filecoinCid || ''
+        const filecoinUrl = data.filecoinUrl || (filecoinCid ? `filecoin://synapse/${filecoinCid}` : '')
         const qrData: QRCodeData = {
           claimCode,
           eventId,
@@ -164,8 +166,9 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
         }
         const encoded = encodeQRData(qrData)
         const qrUrl = generateQRCodeURL(encoded)
-        
-        csvRows.push(`${claimCode},${qrUrl},${eventName},${used ? 'Used' : 'Available'}`)
+        const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
+
+        csvRows.push([escape(claimCode), escape(qrUrl), escape(eventName), used ? 'Used' : 'Available', escape(filecoinCid), escape(filecoinUrl)].join(','))
       })
 
       // Create and download CSV file
@@ -294,6 +297,23 @@ export default function QRCodeGenerator({ eventId, eventName, issuer }: QRCodeGe
                           </Button>
                         </div>
                       </div>
+
+                      {item.filecoinCid && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground">Filecoin CID</p>
+                          <div className="flex gap-2">
+                            <code className="flex-1 p-2 bg-muted rounded text-xs font-mono break-all">{item.filecoinCid}</code>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCopyCode(item.filecoinCid!)}
+                              className="bg-transparent"
+                            >
+                              Copy
+                            </Button>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex gap-2 pt-4">
                         <Button

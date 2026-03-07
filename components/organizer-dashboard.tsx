@@ -1,14 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import EventForm from "./event-form"
 import EventList from "./event-list"
+import FilecoinBilling from "./filecoin-billing"
 import { useEventInfo } from "@/lib/services"
 import { getApplicationId } from "@/lib/config"
 import { useAuth } from "@/lib/firebase/auth-context"
-import { LogOut, User, Plus, Calendar, ShieldCheck, Users, BarChart3, ChevronRight, Activity } from "lucide-react"
+import { useEVMWallet } from "@/lib/evm-wallet-context"
+import { User, Plus, Calendar, ShieldCheck, Users, BarChart3, Activity, Database, AlertTriangle } from "lucide-react"
 
 interface OrganizerDashboardProps {
   wallet: string | null
@@ -18,8 +21,10 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
   const applicationId = getApplicationId()
   const { events: firebaseEvents, loading, error, refetch } = useEventInfo(applicationId)
   const { user, userProfile, logout } = useAuth()
+  const { address: evmAddress, disconnect: disconnectEVM } = useEVMWallet()
 
   const [showForm, setShowForm] = useState(false)
+  const [activeTab, setActiveTab] = useState("events")
 
   // Map Firebase events to component format
   const events = firebaseEvents.map(event => ({
@@ -57,30 +62,58 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
           <div className="flex items-center gap-2 mb-2">
             <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-full">Organizer Portal</span>
             {events.length > 0 && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pr-2 border-r border-gray-200">{events.length} Events Active</span>}
+            {evmAddress && (
+              <span className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">EVM ✓</span>
+                <button
+                  onClick={disconnectEVM}
+                  className="text-[10px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors px-1.5 py-0.5 rounded border border-gray-200 hover:border-red-300"
+                >
+                  Disconnect
+                </button>
+              </span>
+            )}
           </div>
           <h2 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Event Dashboard</h2>
           <p className="text-gray-500 mt-2 font-medium">Coordinate private attendance and ZK-badge issuance.</p>
         </div>
 
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          className={`h-14 px-8 rounded-2xl font-black uppercase tracking-widest transition-all duration-300 shadow-2xl ${showForm ? 'bg-gray-100 text-gray-900 hover:bg-gray-200 shadow-none' : 'bg-gray-900 text-white hover:bg-black shadow-gray-200 hover:scale-[1.02]'}`}
-        >
-          {showForm ? "Close Form" : <span className="flex items-center gap-2"><Plus className="w-5 h-5" /> Create Gated Event</span>}
-        </Button>
+        <div className="flex items-center gap-3">
+          {activeTab === "events" && (
+            <Button
+              onClick={() => setShowForm(!showForm)}
+              className={`h-14 px-8 rounded-2xl font-black uppercase tracking-widest transition-all duration-300 shadow-2xl ${showForm ? 'bg-gray-100 text-gray-900 hover:bg-gray-200 shadow-none' : 'bg-gray-900 text-white hover:bg-black shadow-gray-200 hover:scale-[1.02]'}`}
+            >
+              {showForm ? "Close Form" : <span className="flex items-center gap-2"><Plus className="w-5 h-5" /> Create Gated Event</span>}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {showForm && (
-        <div className="animate-in slide-in-from-top-6 duration-500">
-          <EventForm
-            onSubmit={handleCreateEvent}
-            onSuccess={() => {
-              setShowForm(false)
-              setTimeout(() => refetch(), 2000)
-            }}
-          />
-        </div>
-      )}
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-sm grid-cols-2 rounded-2xl bg-gray-100 p-1">
+          <TabsTrigger value="events" className="rounded-xl font-bold uppercase tracking-widest text-xs">
+            <Calendar className="w-3.5 h-3.5 mr-1.5" /> Events
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="rounded-xl font-bold uppercase tracking-widest text-xs flex items-center gap-1.5">
+            <Database className="w-3.5 h-3.5 mr-1.5" /> Filecoin
+            {!evmAddress && <AlertTriangle className="w-3 h-3 text-orange-400" />}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="events" className="mt-8 space-y-10">
+          {showForm && (
+            <div className="animate-in slide-in-from-top-6 duration-500">
+              <EventForm
+                onSubmit={handleCreateEvent}
+                onSuccess={() => {
+                  setShowForm(false)
+                  setTimeout(() => refetch(), 2000)
+                }}
+              />
+            </div>
+          )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -124,6 +157,12 @@ export default function OrganizerDashboard({ wallet }: OrganizerDashboardProps) 
           <EventList events={events as any} onEventUpdated={refetch} />
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="billing" className="mt-8">
+          <FilecoinBilling />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
