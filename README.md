@@ -1,100 +1,118 @@
 # Attestra 🔐
 
 ![Attestra Banner](https://img.shields.io/badge/Attestra-Proof%20of%20Attendance-blueviolet?style=for-the-badge)
-![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.1-06B6D4?style=for-the-badge&logo=tailwindcss)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4-06B6D4?style=for-the-badge&logo=tailwindcss)
 ![Flow](https://img.shields.io/badge/Flow-Testnet-00EF8B?style=for-the-badge)
-![Firebase](https://img.shields.io/badge/Firebase-10.7-orange?style=for-the-badge&logo=firebase)
+![Firebase](https://img.shields.io/badge/Firebase-Firestore-orange?style=for-the-badge&logo=firebase)
 ![Filecoin](https://img.shields.io/badge/Filecoin-Synapse_SDK-0090FF?style=for-the-badge)
 ![Gemini](https://img.shields.io/badge/Gemini-Flash%202.0-4285F4?style=for-the-badge&logo=google)
 
-**Attestra** is a decentralized proof-of-attendance protocol built on the [Flow](https://flow.com) blockchain with AI-powered attendance verification. Event organizers create on-chain events, generate QR code claim codes, and run Gemini AI verification on event photos. Attendees claim verifiable badges secured by Flow Cadence smart contracts, with metadata pinned to Filecoin via the Synapse SDK for permanent decentralized storage. Gated events enforce ZK-style eligibility rules — requiring attendees to hold a badge from a prerequisite event or meet a minimum reputation level before claiming.
+**Attestra** is a privacy-first, decentralized proof-of-attendance platform built on the [Flow](https://flow.com) blockchain. Event organizers create gated on-chain events, generate QR code claim codes, and run Gemini AI photo verification. Attendees claim verifiable attendance badges minted as Flow Cadence tokens, with all artifact metadata pinned permanently to Filecoin via the Synapse SDK. Gated events enforce eligibility rules — requiring attendees to hold a prerequisite badge or meet a minimum reputation level. Organizers manage Filecoin storage billing in-app via a connected MetaMask wallet.
 
 ---
 
 ## ✨ Features
 
 ### For Event Organizers
-- **Create Events On-Chain** — Deploy events to Flow testnet via the `AttendanceBadge` Cadence contract (100 FLOW fee)
-- **ZK-Gated Events** — Require attendees to hold a prerequisite badge or reach a minimum reputation level (1/3/5 badges)
-- **QR Code Generation** — Bulk-generate unique claim codes and download QR code batches; a CSV manifest is pinned to Filecoin per batch
-- **AI Verification** — Run Gemini Flash 2.0 vision analysis on event photos; the proof hash is signed by an oracle account and committed on-chain
-- **Organizer Dashboard** — View all events, live badge counts, active/inactive status toggle, and attendee list per event; tabbed Events / Filecoin Billing view
-- **Filecoin Metadata** — Event metadata pinned to Filecoin via Synapse SDK using path-style naming: `attestra/{eventId}/event-metadata--{slug}.json`
-- **Filecoin Billing** — Built-in USDFC balance monitor with MetaMask (EVM wallet) connect; organizers deposit USDFC directly from the browser via `depositWithPermitAndApproveOperator` — no CLI needed post-deploy
-- **CSV Export with CIDs** — Downloading claim codes produces a CSV with `Claim Code, QR Code URL, Event Name, Status, Filecoin CID, Filecoin URL` columns
+- **Create Events On-Chain** — Deploy events to Flow testnet via the `AttendanceBadge` Cadence contract (100 FLOW fee); categories: Conference, Hackathon, Meetup, Workshop
+- **Gated Events** — Require attendees to hold a badge from a prior event (`prerequisiteEventId`) or reach a minimum reputation level (0 / 1 / 3 / 5 badges)
+- **QR Code Generation** — Bulk-generate unique claim codes; download individual QR images or all codes as a CSV (includes `Claim Code`, `QR URL`, `Event Name`, `Status`, `Filecoin CID`, `Filecoin URL`)
+- **AI Photo Verification** — Trigger Gemini Flash 2.0 vision analysis on event photos from the event dashboard; proof hash committed on-chain via oracle account
+- **Organizer Dashboard** — Tabbed view: **Events** (stats, event list, create form) and **Filecoin Billing** (balance, MetaMask deposit)
+- **Filecoin Billing** — Live USDFC balance display; connect MetaMask to deposit USDFC directly from the browser via `depositWithPermitAndApproveOperator` — no CLI needed post-deploy; low-balance warning at < 0.5 USDFC
 
 ### For Attendees
-- **Manual Badge Claiming** — Enter a claim code to mint a badge on Flow testnet (3 FLOW fee)
-- **QR Code Scanning** — Scan QR codes at events to auto-fill the claim code
-- **Eligibility Enforcement** — Clear error messages when prerequisite badge or reputation level requirements are not met
-- **Badge Portfolio** — View all claimed badges with Flow TX IDs, Filecoin CIDs, and claim timestamps
-- **On-Chain Reputation** — Reputation level (Beginner → Initiate → Voyager → Visionary) based on total badges held
+- **Badge Claiming** — Enter a claim code (manual) or scan a QR code to mint a badge on Flow testnet (3 FLOW fee)
+- **Wallet Verification** — Wallet ownership is verified via FCL before any claim is accepted
+- **Eligibility Enforcement** — Clear error messages for unmet prerequisite badge or reputation requirements
+- **Badge Portfolio** — Full gallery of claimed badges with event name, category, claim date, Flow TX ID, and Filecoin CID
+- **On-Chain Reputation** — Reputation level based on total badges held: Beginner (0) → Initiate (1+) → Voyager (3+) → Visionary (6+)
+- **Badge History** — In-portal badge history list with status and Flow TX IDs
 
-### Platform Features
-- **Firebase Authentication** — Email/password sign-in with role separation (organizer vs. attendee)
-- **Hybrid Storage** — Firebase Firestore for mutable metadata, Flow blockchain for ownership, Filecoin for permanent artifact storage
-- **Responsive Design** — Fully optimized for desktop and mobile
-- **Graceful Degradation** — Filecoin pinning failures return a pending stub so Flow transactions always proceed
+### Platform
+- **Role-Based Auth** — Firebase email/password sign-in; role (organizer / attendee) stored in Firestore user profile
+- **Dual Wallet** — Flow wallet (FCL + WalletConnect) for on-chain transactions; MetaMask (EVM) for Filecoin billing only
+- **Hybrid Storage** — Firestore for mutable metadata; Flow for badge ownership; Filecoin for permanent artifact storage
+- **Non-Blocking Filecoin** — Badge metadata pinned to Filecoin in the background after Flow tx; Flow tx is never delayed by Filecoin
+- **Graceful Degradation** — Filecoin network errors return a `pending: true` stub; all Flow operations continue unaffected
+- **Pricing Tiers** — Free (1 event, 10 codes), Pro ($29/mo, unlimited), Enterprise (custom) shown on landing page
+- **Responsive UI** — Full desktop and mobile support; dark hero header, Flow price widget, use-case showcase, how-it-works section
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Next.js 15 App                           │
-│                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │  Organizer   │  │  Attendee    │  │  Landing / Pricing / │  │
-│  │  Dashboard   │  │   Portal     │  │  Onboarding          │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────────────────────┘  │
-│         │                 │                                      │
-│  ┌──────▼─────────────────▼─────────────────────────────────┐   │
-│  │           lib/services  (React hooks)                    │   │
-│  │  useEventOperations · useEventInfo · useUserBadges       │   │
-│  └──────┬──────────────────────┬───────────────────────────-┘   │
-│         │                      │                                 │
-│  ┌──────▼──────┐    ┌──────────▼────────────────────────────┐   │
-│  │  Firebase   │    │           API Routes                  │   │
-│  │  Firestore  │    │  POST /api/pin   POST /api/verify     │   │
-│  │  Auth       │    └──────────┬──────────────┬────────────-┘   │
-│  └─────────────┘               │              │                  │
-│                     ┌──────────▼──┐  ┌────────▼─────────────┐   │
-│                     │  Synapse SDK │  │  Gemini Flash 2.0    │   │
-│                     │  (Filecoin)  │  │  AI Verification     │   │
-│                     └─────────────┘  └──────────┬───────────┘   │
-│                                                 │                │
-│                     ┌───────────────────────────▼─────────────┐ │
-│                     │    Flow Blockchain (Testnet)             │ │
-│                     │    AttendanceBadge.cdc contract          │ │
-│                     │    FCL wallet · Oracle signer            │ │
-│                     └─────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Next.js 15 App (SPA)                         │
+│                                                                      │
+│  Landing / Role Select → Login (Firebase) → Role-based view          │
+│                                                                      │
+│  ┌──────────────────────┐      ┌──────────────────────────────────┐  │
+│  │  Organizer Dashboard │      │  Attendee Portal + Badge Portfolio│  │
+│  │  ├─ Events tab       │      │  ├─ Claim Badge (manual / QR)    │  │
+│  │  │  ├─ Event Form    │      │  ├─ Badge History                │  │
+│  │  │  ├─ Event List    │      │  └─ Reputation Dashboard         │  │
+│  │  │  └─ QR Generator  │      └──────────────────────────────────┘  │
+│  │  └─ Filecoin tab     │                                            │
+│  │     └─ Billing UI    │                                            │
+│  └──────────────────────┘                                            │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │                   lib/services (React hooks)                 │    │
+│  │   useEventOperations · useEventInfo · useUserBadges          │    │
+│  └──────────────────┬───────────────────────┬───────────────────┘    │
+│                     │                       │                        │
+│  ┌──────────────────▼──┐   ┌───────────────▼──────────────────────┐ │
+│  │  Firebase Firestore  │   │  Next.js API Routes                  │ │
+│  │  + Auth              │   │  POST /api/pin                       │ │
+│  └─────────────────────┘   │  POST /api/verify                    │ │
+│                             │  GET  /api/synapse/balance           │ │
+│                             │  POST /api/synapse/deposit           │ │
+│                             └───────┬──────────────┬──────────────┘ │
+│                                     │              │                 │
+│                        ┌────────────▼──┐  ┌────────▼─────────────┐  │
+│                        │  Synapse SDK  │  │  Gemini Flash 2.0    │  │
+│                        │  (Filecoin    │  │  AI Verification     │  │
+│                        │  Calibration) │  └──────────┬───────────┘  │
+│                        └───────────────┘             │              │
+│                                          ┌───────────▼────────────┐ │
+│                                          │  Flow Blockchain       │ │
+│                                          │  AttendanceBadge.cdc   │ │
+│                                          │  FCL · Oracle signer   │ │
+│                                          └────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Data Flow — Event Creation
-1. Organizer fills the event form (name, dates, ZK-eligibility rules)
+1. Organizer fills event form (name, description, dates, location, category, max attendees, gating rules)
 2. Firebase doc created first → its ID becomes the canonical `eventId`
-3. Event metadata pinned to Filecoin → CID returned
-4. FCL wallet popup → organizer pays 100 FLOW → `createEvent` transaction sealed on Flow
-5. Firebase doc updated with `flowTxId`; Firebase doc rolled back if Flow tx fails
+3. Event metadata pinned to Filecoin via `POST /api/pin` → CID returned
+4. FCL wallet popup → organizer pays **100 FLOW** → `CreateEvent.cdc` sealed on Flow
+5. Firebase doc updated with `flowTxId`; rolled back if Flow tx fails
 
 ### Data Flow — Badge Claiming
-1. Attendee enters claim code → Firestore validates code is unused
-2. ZK eligibility checks: prerequisite badge ownership + reputation level
-3. FCL wallet popup → attendee pays 3 FLOW → `claimBadge` transaction sealed on Flow *(Filecoin pin is intentionally deferred so the wallet popup is instant)*
-4. Firebase badge record written (with `category` field) immediately after on-chain tx
-5. Badge metadata pinned to Filecoin as CSV via Synapse SDK **in the background** (non-blocking, non-fatal); CID written back to Firebase badge doc via `updateDoc`
+1. Attendee enters claim code → Firestore validates code exists and is unused
+2. Client-side eligibility checks: prerequisite badge ownership + reputation level
+3. FCL wallet popup → attendee pays **3 FLOW** → `ClaimBadge.cdc` sealed on Flow *(Filecoin pin deferred — wallet popup is instant)*
+4. Firebase badge record written immediately with `category`, `eventName`, `claimCode`, `flowTxId`
+5. Badge metadata pinned to Filecoin as CSV **in the background** (non-blocking); `filecoinCid` written back to Firebase via `updateDoc`
 
 ### Data Flow — AI Verification
-1. Organizer triggers "AI Verify" from the event dashboard, provides photo URLs
-2. `/api/verify` fetches each image, encodes to base64, sends to Gemini Flash 2.0
-3. AI returns attendance confidence score
+1. Organizer clicks **AI Verify** in event list, provides photo URLs
+2. `POST /api/verify` fetches images → base64 encodes → sends to `gemini-2.0-flash`
+3. AI returns confidence score
 4. Result hashed with SHA-256 → `proofHash`
-5. Verification artifact pinned to Filecoin: `attestra/{eventId}/ai-verification.json`
-6. Oracle account (server-side P-256 key) signs and submits `submitAIVerification` tx on Flow
+5. Verification artifact JSON pinned to Filecoin
+6. Oracle account (server-side P-256 key) signs and submits `SubmitAIVerification.cdc` on Flow
+
+### Data Flow — Filecoin Top-Up
+1. Organizer opens **Filecoin** tab in dashboard
+2. Clicks **Connect MetaMask** → MetaMask prompted to switch to / add Filecoin Calibration Testnet
+3. Enters USDFC amount → clicks **Deposit** → MetaMask signs `depositWithPermitAndApproveOperator`
+4. Balance cards refresh automatically after confirmation
 
 ---
 
@@ -102,15 +120,15 @@
 
 | Layer | Technology |
 |---|---|
-| Framework | [Next.js 15.5](https://nextjs.org/) — App Router |
+| Framework | [Next.js 15](https://nextjs.org/) — App Router, single-page |
 | Language | [TypeScript 5](https://www.typescriptlang.org/) |
 | Styling | [TailwindCSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) |
 | Blockchain | [Flow Testnet](https://flow.com) — Cadence 1.0 |
-| Wallet (Flow) | [Flow Client Library (FCL)](https://developers.flow.com/tools/clients/fcl-js) + WalletConnect |
+| Wallet (Flow) | [FCL](https://developers.flow.com/tools/clients/fcl-js) + WalletConnect |
 | Wallet (EVM) | [viem](https://viem.sh/) `createWalletClient` + MetaMask (`window.ethereum`) |
 | Smart Contract | `AttendanceBadge.cdc` — Cadence 1.0 |
 | Database | [Firebase Firestore](https://firebase.google.com/docs/firestore) |
-| Auth | [Firebase Authentication](https://firebase.google.com/docs/auth) |
+| Auth | [Firebase Authentication](https://firebase.google.com/docs/auth) — Email/Password |
 | Decentralized Storage | [Filecoin Synapse SDK](https://docs.filecoin.cloud) (`@filoz/synapse-sdk`) |
 | AI Verification | [Gemini Flash 2.0](https://ai.google.dev/) (`gemini-2.0-flash`) |
 | Icons | [Lucide React](https://lucide.dev/) |
@@ -124,61 +142,72 @@
 attestra/
 ├── app/
 │   ├── api/
-│   │   ├── pin/route.ts          # POST — pin event/badge/QR metadata to Filecoin
-│   │   ├── verify/route.ts       # POST — run Gemini AI verification pipeline
+│   │   ├── pin/route.ts              # POST — pin event/badge/QR metadata to Filecoin
+│   │   ├── verify/route.ts           # POST — run Gemini AI verification pipeline
 │   │   └── synapse/
-│   │       ├── balance/route.ts  # GET  — USDFC deposited + wallet balance for server key
-│   │       └── deposit/route.ts  # POST — validate deposit amount, return chain info
-│   ├── layout.tsx                # Root layout with FCL, Firebase, and EVM wallet providers
-│   └── page.tsx                  # Single-page app with role-based view routing
+│   │       ├── balance/route.ts      # GET  — USDFC deposited + wallet balance
+│   │       └── deposit/route.ts      # POST — validate deposit, return chain info
+│   ├── layout.tsx                    # Root layout: ThemeProvider, AuthProvider, EVMWalletProvider, AleoWalletProvider
+│   └── page.tsx                      # SPA: landing → role select → organizer or attendee view
 │
 ├── cadence/
 │   ├── contracts/
-│   │   └── AttendanceBadge.cdc   # Main Cadence smart contract
+│   │   └── AttendanceBadge.cdc       # Main Cadence smart contract
 │   ├── scripts/
-│   │   ├── GetEvent.cdc          # Query event record by ID
-│   │   ├── GetBadgeIDs.cdc       # Query badge IDs for an address
-│   │   └── GetAIVerification.cdc # Query AI verification record for an event
+│   │   ├── GetEvent.cdc
+│   │   ├── GetBadgeIDs.cdc
+│   │   └── GetAIVerification.cdc
 │   └── transactions/
-│       ├── CreateEvent.cdc       # Organizer pays 100 FLOW, registers event on-chain
-│       ├── ClaimBadge.cdc        # Attendee pays 3 FLOW, mints badge on-chain
-│       └── SubmitAIVerification.cdc # Oracle submits AI proof hash on-chain
+│       ├── CreateEvent.cdc           # 100 FLOW — register event on-chain
+│       ├── ClaimBadge.cdc            # 3 FLOW — mint badge on-chain
+│       └── SubmitAIVerification.cdc  # Oracle submits AI proof hash
 │
 ├── components/
-│   ├── attendee-portal.tsx       # Attendee badge claiming and reputation dashboard
-│   ├── badge-portfolio.tsx       # Badge gallery with Filecoin/Flow details
-│   ├── event-form.tsx            # Create event form with ZK-eligibility settings
-│   ├── event-list.tsx            # Organizer event list with AI Verify dialog
-│   ├── filecoin-billing.tsx      # EVM wallet connect + USDFC balance + deposit UI
-│   ├── organizer-dashboard.tsx   # Top-level organizer view (Events + Filecoin tabs)
-│   ├── qr-code-generator.tsx     # Bulk QR code generation + Filecoin CSV manifest
-│   ├── pricing.tsx               # Pricing tiers
-│   └── onboarding/               # Landing page sections (how it works, use cases)
+│   ├── attendee-portal.tsx           # Badge claiming, history, reputation dashboard
+│   ├── badge-portfolio.tsx           # Full badge gallery (category, CID, Flow TX)
+│   ├── event-form.tsx                # Create event (name, dates, category, gating rules)
+│   ├── event-list.tsx                # Organizer event list + QR generator + AI Verify
+│   ├── filecoin-billing.tsx          # MetaMask connect, USDFC balance, deposit form
+│   ├── header.tsx                    # Top navigation bar
+│   ├── hamburger-menu.tsx            # Mobile navigation
+│   ├── organizer-dashboard.tsx       # Dashboard shell: Events tab + Filecoin tab
+│   ├── pricing.tsx                   # Free / Pro / Enterprise pricing tiers
+│   ├── qr-code-generator.tsx         # Bulk QR generation + CSV export with CIDs
+│   ├── wallet-button.tsx             # Flow wallet connect / disconnect button
+│   ├── auth/
+│   │   └── login-dialog.tsx          # Firebase email/password login modal
+│   ├── badge/
+│   │   └── badge-card.tsx            # Individual badge display card
+│   └── onboarding/
+│       ├── how-it-works.tsx          # Landing — how it works section
+│       └── use-case-showcase.tsx     # Landing — use cases section
 │
 ├── lib/
 │   ├── ai/
-│   │   └── verification-agent.ts # Gemini Flash integration + oracle pipeline
-│   ├── evm-wallet-context.tsx    # EVM wallet context (MetaMask / window.ethereum + viem)
+│   │   └── verification-agent.ts     # Gemini Flash integration + oracle pipeline
+│   ├── evm-wallet-context.tsx        # MetaMask context (viem walletClient + connect/disconnect)
+│   ├── wallet-adapter-context.tsx    # AleoWalletProvider wrapping Flow wallet context
 │   ├── firebase/
-│   │   ├── config.ts             # Firebase app initialization
-│   │   └── auth-context.tsx      # Auth provider and useAuth hook
+│   │   ├── config.ts
+│   │   └── auth-context.tsx          # AuthProvider + useAuth hook
 │   ├── flow/
-│   │   ├── client.ts             # FlowClient class + FCL config + oracle signer
-│   │   ├── hooks.ts              # useFlowWallet hook
-│   │   └── types.ts              # Flow type definitions
+│   │   ├── client.ts                 # FlowClient + FCL config + oracle signer (P-256)
+│   │   ├── hooks.ts                  # useFlowWallet hook (address, verified)
+│   │   └── types.ts
 │   ├── ipfs/
-│   │   └── client.ts             # Synapse SDK upload helpers (JSON, CSV, buffer)
+│   │   └── client.ts                 # Synapse SDK helpers: uploadJSON, uploadCSV, uploadBytes
 │   ├── services/
-│   │   ├── event-hooks.ts        # useEventOperations, useEventInfo hooks
-│   │   ├── badge-hooks.ts        # useUserBadges hook
-│   │   ├── types.ts              # Shared TypeScript interfaces
-│   │   └── index.ts              # Re-exports
-│   └── config.ts                 # App-level config helpers
+│   │   ├── event-hooks.ts            # useEventOperations (createEvent, claimBadge), useEventInfo
+│   │   ├── badge-hooks.ts            # useUserBadges
+│   │   ├── types.ts                  # EventData, BadgeData, EventCategory
+│   │   └── index.ts
+│   ├── qr-utils.ts                   # generateClaimCode, encodeQRData, decodeQRData
+│   └── config.ts                     # getApplicationId, env helpers
 │
 └── scripts/
-    ├── generate-claim-codes.js   # CLI script to bulk-generate claim codes
-    ├── synapse-setup.mjs         # One-time Synapse payment approval (USDFC deposit + approveService)
-    └── synapse-verify.mjs        # Verify a Filecoin upload by CID, or run a test round-trip
+    ├── generate-claim-codes.js       # CLI: bulk-generate claim codes into Firestore
+    ├── synapse-setup.mjs             # CLI: one-time USDFC deposit + approveService
+    └── synapse-verify.mjs            # CLI: test upload or verify a PieceCID
 ```
 
 ---
@@ -187,14 +216,14 @@ attestra/
 
 - **Node.js** 18+
 - **Flow Wallet** — [Flow Wallet](https://wallet.flow.com/), [Blocto](https://blocto.io/), or any FCL-compatible wallet
-- **Flow Testnet FLOW tokens** — Get from the [Flow Testnet Faucet](https://testnet-faucet.onflow.org)
-  - Organizers need **100 FLOW** to create an event
-  - Attendees need **3 FLOW** to claim a badge
-- **Firebase Project** — Free Spark plan is sufficient
-- **Filecoin Synapse wallet** — EVM-compatible private key (`SYNAPSE_PRIVATE_KEY`) with USDFC tokens for server-side upload fees; see [docs.filecoin.cloud](https://docs.filecoin.cloud/getting-started/)
-- **MetaMask** (optional, for organizers) — EVM wallet for topping up USDFC balance directly from the Filecoin Billing tab in the organizer dashboard
-- **Gemini API key** — Free at [Google AI Studio](https://aistudio.google.com) (no credit card required)
-- **Flow CLI** — Required for contract deployment: see [docs](https://developers.flow.com/tools/flow-cli)
+- **Flow Testnet FLOW tokens** — [Testnet Faucet](https://testnet-faucet.onflow.org)
+  - Organizers: **100 FLOW** to create an event
+  - Attendees: **3 FLOW** to claim a badge
+- **Firebase Project** — Free Spark plan; enable Email/Password Auth and Firestore
+- **Filecoin Synapse wallet** — EVM private key (`SYNAPSE_PRIVATE_KEY`) funded with USDFC on Filecoin Calibration testnet; see [docs.filecoin.cloud](https://docs.filecoin.cloud/getting-started/)
+- **MetaMask** *(organizers only)* — for topping up USDFC from the Filecoin Billing tab
+- **Gemini API key** — Free at [aistudio.google.com](https://aistudio.google.com)
+- **Flow CLI** — For contract deployment: [install docs](https://developers.flow.com/tools/flow-cli)
 
 ---
 
@@ -219,26 +248,21 @@ Fill in all values — see [Environment Variables](#-environment-variables) belo
 ### 3. Deploy the Cadence Contract
 
 ```bash
-# Create a testnet account (skip if you already have one)
-flow accounts create --network testnet
-
-# Deploy AttendanceBadge.cdc to testnet
+flow accounts create --network testnet   # skip if you have one
 flow project deploy --network testnet
 ```
 
-Copy the deployed contract address into `NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS` in `.env.local`.
+Copy the deployed address into `NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS` in `.env.local`.
 
 ### 4. Run the Synapse One-Time Setup
-
-Deposit USDFC into the Synapse payment contract and approve the warm storage operator. Only needs to be done once per wallet:
 
 ```bash
 node scripts/synapse-setup.mjs
 ```
 
-Alternatively, organizers can top up USDFC at any time from the **Filecoin Billing** tab in the organizer dashboard by connecting MetaMask.
+Deposits USDFC and approves the warm storage operator. Only needed once per wallet. Alternatively, use the **Filecoin** tab in the organizer dashboard after launch.
 
-### 5. Run the Development Server
+### 5. Start the Dev Server
 
 ```bash
 npm run dev
@@ -263,8 +287,6 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
 ```
 
-Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com), enable **Authentication** (Email/Password) and **Firestore Database**.
-
 ### Flow Blockchain
 
 ```env
@@ -272,35 +294,35 @@ NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS=0xYourDeployedContractAddress
 NEXT_PUBLIC_FLOW_NETWORK=testnet
 NEXT_PUBLIC_FLOW_ACCESS_NODE=https://rest-testnet.onflow.org
 NEXT_PUBLIC_FLOW_WALLET_DISCOVERY=https://fcl-discovery.onflow.org/testnet/authn
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=        # https://cloud.walletconnect.com
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=    # https://cloud.walletconnect.com
 
-FLOW_TESTNET_ADDRESS=0xYourTestnetAccountAddress
-FLOW_TESTNET_PRIVATE_KEY=your_testnet_private_key_hex
+FLOW_TESTNET_ADDRESS=0xYourTestnetAddress
+FLOW_TESTNET_PRIVATE_KEY=your_hex_private_key
 
-# Oracle account — used by /api/verify to sign AI verification transactions server-side
-FLOW_ORACLE_ADDRESS=0xYourOracleAccountAddress
-FLOW_ORACLE_PRIVATE_KEY=your_oracle_private_key_hex
+# Oracle — server-side, signs AI verification transactions
+FLOW_ORACLE_ADDRESS=0xYourOracleAddress
+FLOW_ORACLE_PRIVATE_KEY=your_oracle_hex_key
 ```
 
-Generate a key pair with `flow keys generate` and fund both accounts from the [testnet faucet](https://testnet-faucet.onflow.org).
+Generate key pairs with `flow keys generate`. Fund both accounts from the [testnet faucet](https://testnet-faucet.onflow.org).
 
 ### Filecoin — Synapse SDK
 
 ```env
-SYNAPSE_PRIVATE_KEY=0x...  # EVM wallet private key (hex) with USDFC tokens
-# SYNAPSE_RPC_URL=          # Optional: override default Filecoin RPC endpoint
+SYNAPSE_PRIVATE_KEY=0x...   # Server-side EVM key — NEVER prefix with NEXT_PUBLIC_
+# SYNAPSE_RPC_URL=           # Optional: override Filecoin Calibration RPC
 ```
 
-> **Note:** Do NOT prefix with `NEXT_PUBLIC_`. This key is server-side only. See [docs.filecoin.cloud/getting-started](https://docs.filecoin.cloud/getting-started/) to fund your wallet with USDFC.
+See [docs.filecoin.cloud/getting-started](https://docs.filecoin.cloud/getting-started/) to acquire USDFC.
 
 ### AI Verification — Gemini
 
 ```env
-GEMINI_API_KEY=           # https://aistudio.google.com — free, no credit card
+GEMINI_API_KEY=
 NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT=/api/verify
 ```
 
-Free quota: **15 requests/min, 1M tokens/day** on `gemini-2.0-flash`.
+Free quota: **15 req/min, 1M tokens/day** on `gemini-2.0-flash`.
 
 ---
 
@@ -312,10 +334,10 @@ Located at `cadence/contracts/AttendanceBadge.cdc`. Deployed on Flow Testnet.
 
 #### On-Chain State
 
-| Storage | Type | Description |
+| Key | Type | Description |
 |---|---|---|
-| `events` | `{String: EventRecord}` | Registry of all events keyed by `eventId` |
-| `verifications` | `{String: VerificationRecord}` | AI verification proofs keyed by `eventId` |
+| `events` | `{String: EventRecord}` | All events keyed by `eventId` |
+| `verifications` | `{String: VerificationRecord}` | AI proofs keyed by `eventId` |
 | `totalBadges` | `UInt64` | Global badge counter |
 | `totalEvents` | `UInt64` | Global event counter |
 
@@ -323,19 +345,19 @@ Located at `cadence/contracts/AttendanceBadge.cdc`. Deployed on Flow Testnet.
 
 | Transaction | Fee | Description |
 |---|---|---|
-| `CreateEvent.cdc` | 100 FLOW | Registers an event on-chain; transfers fee to contract owner |
-| `ClaimBadge.cdc` | 3 FLOW | Mints a badge for the claimer; transfers fee to contract owner |
-| `SubmitAIVerification.cdc` | gas only | Records AI proof hash and Filecoin CID on-chain (oracle-signed) |
+| `CreateEvent.cdc` | 100 FLOW | Register event on-chain |
+| `ClaimBadge.cdc` | 3 FLOW | Mint badge for claimer |
+| `SubmitAIVerification.cdc` | gas only | Record AI proof hash + Filecoin CID (oracle-signed) |
 
-#### Scripts (read-only)
+#### Scripts
 
-| Script | Description |
+| Script | Returns |
 |---|---|
-| `GetEvent.cdc` | Returns `EventRecord` for a given `eventId` |
-| `GetBadgeIDs.cdc` | Returns badge IDs owned by a given `Address` |
-| `GetAIVerification.cdc` | Returns `VerificationRecord` for a given `eventId` |
+| `GetEvent.cdc` | `EventRecord` for a given `eventId` |
+| `GetBadgeIDs.cdc` | Badge IDs for a given `Address` |
+| `GetAIVerification.cdc` | `VerificationRecord` for a given `eventId` |
 
-#### Events Emitted
+#### Emitted Events
 
 ```cadence
 event EventCreated(eventId: String, organizer: Address, filecoinCid: String)
@@ -350,32 +372,24 @@ event AIVerificationSubmitted(eventId: String, oracle: Address, proofHash: Strin
 
 ### `POST /api/pin`
 
-Pins metadata to Filecoin via Synapse SDK. Server-side only — keeps `SYNAPSE_PRIVATE_KEY` off the client. Upload fees are paid from the server wallet's deposited USDFC balance.
-
-**Request body:**
+Pins metadata to Filecoin. Server-side only — `SYNAPSE_PRIVATE_KEY` never reaches the client.
 
 ```jsonc
-// Pin event metadata
-{ "type": "event", "data": { "eventId": "...", "name": "...", ...EventMetadata } }
+// Event metadata
+{ "type": "event", "data": { "eventId": "...", "name": "...", "category": "..." } }
 
-// Pin badge metadata (saved as CSV)
-{ "type": "badge", "data": { "eventId": "...", "claimCode": "...", ...BadgeMetadata } }
+// Badge metadata
+{ "type": "badge", "data": { "eventId": "...", "claimCode": "...", "category": "..." } }
 
-// Pin QR code batch manifest (CSV)
+// QR code batch manifest
 { "type": "qr-manifest", "data": { "rows": [...], "eventId": "...", "eventName": "..." } }
 ```
 
-**Response:**
+**Success:** `{ "cid": "bafkzcib...", "url": "filecoin://synapse/...", "size": 512, "name": "attestra/..." }`
 
-```jsonc
-{ "cid": "bafkzcib...", "url": "filecoin://synapse/bafkzcib...", "size": 512, "name": "attestra/..." }
+**Degraded (non-fatal):** `{ "cid": null, "url": null, "size": 0, "name": "", "pending": true }`
 
-// On Synapse network error (non-fatal — Flow tx still proceeds):
-{ "cid": null, "url": null, "size": 0, "name": "", "pending": true }
-```
-
-**Filecoin path naming:**
-
+**Filecoin paths:**
 ```
 attestra/{eventId}/event-metadata--{slug}.json
 attestra/{eventId}/badges/{claimCode}.csv
@@ -387,19 +401,15 @@ attestra/{eventId}/ai-verification.json
 
 ### `GET /api/synapse/balance`
 
-Returns the USDFC balance state for the server wallet. Used by the Filecoin Billing tab.
-
-**Response:**
+Returns server wallet USDFC balance info for the Filecoin Billing tab.
 
 ```jsonc
 {
   "serverWalletAddress": "0x...",
-  "walletBalance": "2500000000000000000",       // raw bigint string
-  "walletBalanceFormatted": "2.5",              // USDFC decimal
-  "depositedBalance": "1800000000000000000",
+  "walletBalanceFormatted": "2.5",
   "depositedBalanceFormatted": "1.8",
   "serviceApproved": true,
-  "lowBalance": false                           // true when deposited < 0.5 USDFC
+  "lowBalance": false   // true when deposited < 0.5 USDFC
 }
 ```
 
@@ -407,38 +417,31 @@ Returns the USDFC balance state for the server wallet. Used by the Filecoin Bill
 
 ### `POST /api/synapse/deposit`
 
-Validates a deposit amount and returns chain metadata. The actual `depositWithPermitAndApproveOperator` transaction is signed and submitted **client-side** via the organizer's MetaMask wallet — the server key is not used for deposits.
+Validates deposit amount and returns chain info. The actual transaction is signed **client-side** by MetaMask via `depositWithPermitAndApproveOperator` — the server key is not used.
 
-**Request body:** `{ "amount": "2.5" }`
+```jsonc
+// Request
+{ "amount": "2.5" }
 
-**Response:** `{ "ok": true, "parsedAmount": "...", "serverWalletAddress": "0x...", "chainId": 314159, ... }`
+// Response
+{ "ok": true, "parsedAmount": "2500000000000000000", "serverWalletAddress": "0x...", "chainId": 314159 }
+```
 
 ---
 
 ### `POST /api/verify`
 
-Runs the full AI verification pipeline for an event.
-
-**Request body:**
+AI verification pipeline.
 
 ```json
 {
-  "eventId": "firestore-event-id",
-  "imageUrls": ["https://...", "https://..."],
-  "attendeeAddress": "0xOptionalFlowAddress"
+  "eventId": "...",
+  "imageUrls": ["https://..."],
+  "attendeeAddress": "0xOptional"
 }
 ```
 
-**Pipeline:**
-1. Fetches each image URL and encodes to base64
-2. Sends to `gemini-2.0-flash` with an attendance verification prompt
-3. Parses confidence score from AI response
-4. Hashes result with SHA-256 → `proofHash`
-5. Pins verification artifact as JSON to Filecoin
-6. Oracle account signs + submits `SubmitAIVerification` transaction on Flow
-
 **Response:**
-
 ```json
 {
   "eventId": "...",
@@ -453,173 +456,98 @@ Runs the full AI verification pipeline for an event.
 
 ---
 
-## 🔒 ZK-Gated Events
+## 🔒 Gated Events
 
-Organizers can set eligibility rules enforced at claim time:
+Set eligibility rules on event creation — enforced at claim time.
 
 ### Prerequisite Badge
-
-Attendees must hold a badge from a specified previous event.
-
-```
-Eligibility Required: You must hold a badge from "Flow Hackathon 2025" to claim this badge.
-```
+Attendee must hold a badge from a specific prior event.
 
 ### Minimum Reputation Level
 
-Based on total badges held across all events:
-
-| Badges | Level | Label |
+| Badges held | Level | Label |
 |---|---|---|
 | 0 | 0 | Beginner |
 | 1+ | 1 | Initiate |
 | 3+ | 2 | Voyager |
 | 6+ | 3 | Visionary |
 
-```
-Reputation Too Low: This event requires Voyager status (3+ badges). You have 1.
-```
-
 ---
 
-## 🚢 Deploying to Vercel
+## 💳 Pricing
 
-### 1. Push to GitHub
+| Tier | Price | Events | Badge Codes |
+|---|---|---|---|
+| **Free** | $0/forever | 1 | 10 per event |
+| **Pro** | $29/month | Unlimited | 1,000/month |
+| **Enterprise** | Custom | Unlimited | Unlimited |
 
-```bash
-git add .
-git commit -m "deploy attestra"
-git push origin main
-```
-
-### 2. Import on Vercel
-
-Go to [vercel.com/new](https://vercel.com/new) and import your repository.
-
-### 3. Set Environment Variables
-
-In your Vercel project **Settings → Environment Variables**, add every variable from `.env.example`:
-
-```
-NEXT_PUBLIC_FIREBASE_API_KEY
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-NEXT_PUBLIC_FIREBASE_PROJECT_ID
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-NEXT_PUBLIC_FIREBASE_APP_ID
-NEXT_PUBLIC_FLOW_CONTRACT_ADDRESS
-NEXT_PUBLIC_FLOW_NETWORK
-NEXT_PUBLIC_FLOW_ACCESS_NODE
-NEXT_PUBLIC_FLOW_WALLET_DISCOVERY
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
-FLOW_TESTNET_ADDRESS
-FLOW_TESTNET_PRIVATE_KEY
-FLOW_ORACLE_ADDRESS
-FLOW_ORACLE_PRIVATE_KEY
-SYNAPSE_PRIVATE_KEY
-GEMINI_API_KEY
-NEXT_PUBLIC_AI_VERIFICATION_ENDPOINT
-```
-
-### 4. Deploy
-
-Vercel auto-deploys on every push to `main`.
-
-> **Important:** `@onflow/fcl` and `@filoz/synapse-sdk` are listed in `serverExternalPackages` in `next.config.mjs` — required for Vercel serverless functions to load them at runtime instead of bundling them.
-
----
-
-## 🛠️ Local Development
-
-### Generate Claim Codes (CLI)
-
-```bash
-npm run generate:codes
-```
-
-### Verify Filecoin Storage (CLI)
-
-```bash
-# Run a test upload + round-trip
-node scripts/synapse-verify.mjs
-
-# Verify a specific CID
-node scripts/synapse-verify.mjs <PieceCID>
-```
-
-### Synapse Initial Setup (CLI)
-
-Run once after configuring `SYNAPSE_PRIVATE_KEY` to deposit USDFC and approve the warm storage operator:
-
-```bash
-node scripts/synapse-setup.mjs
-```
-
-### Firestore Security Rules
-
-Production-ready rules are in `firestore.rules`. Deploy with:
-
-```bash
-firebase deploy --only firestore:rules
-```
-
-### Flow Emulator (contract development)
-
-```bash
-flow emulator start
-flow project deploy --network emulator
-```
-
----
-
-## 🤖 AI Verification Agent
-
-The verification pipeline in `lib/ai/verification-agent.ts` uses **Gemini Flash 2.0** via `@google/generative-ai`.
-
-### Oracle Pattern
-
-The oracle account is a dedicated Flow testnet account whose private key is stored server-side in `FLOW_ORACLE_PRIVATE_KEY`. It never interacts with user wallets. `getOracleAuthorizer()` in `lib/flow/client.ts` builds the FCL authorizer using P-256 signing with `elliptic` + `sha3`.
+All tiers include QR code generation, Firebase badge storage, and Flow testnet transactions. Pro adds gated events, reputation scoring, and bulk export.
 
 ---
 
 ## 📦 Filecoin Storage
 
-All persistent artifacts are stored on Filecoin via the [Synapse SDK](https://docs.filecoin.cloud) (`@filoz/synapse-sdk`). Each upload returns a PieceCID verified on-chain via PDP (Proof of Data Possession) proofs.
+All artifacts stored on Filecoin via `@filoz/synapse-sdk`. PieceCIDs verified via PDP (Proof of Data Possession).
 
-| Artifact | Format | Path |
+| Artifact | Format | Payer |
 |---|---|---|
-| Event metadata | JSON | `attestra/{eventId}/event-metadata--{slug}.json` |
-| Badge metadata | CSV | `attestra/{eventId}/badges/{claimCode}.csv` |
-| QR code batch manifest | CSV | `attestra/{eventId}/qr-codes/batch-{timestamp}--{slug}.csv` |
-| AI verification artifact | JSON | `attestra/{eventId}/ai-verification.json` |
+| Event metadata | JSON | Organizer (server wallet) |
+| Badge metadata | CSV | Organizer (server wallet, background) |
+| QR code batch manifest | CSV | Organizer (server wallet) |
+| AI verification artifact | JSON | Organizer (server wallet) |
 
-Retrieve any piece using the Synapse SDK:
-
+Retrieve by CID:
 ```ts
 const bytes = await synapse.storage.download({ pieceCid: '<PieceCID>' });
 ```
 
-### Verifying uploads
+Organizers top up USDFC from the **Filecoin** tab in the dashboard. Low-balance alert at < 0.5 USDFC.
+
+---
+
+## 🚢 Deploying to Vercel
 
 ```bash
-# Test upload + round-trip verification (no args)
-node scripts/synapse-verify.mjs
-
-# Verify a specific PieceCID
-node scripts/synapse-verify.mjs bafkzcib...
+git add . && git commit -m "deploy" && git push origin main
 ```
 
-### Who pays for Filecoin storage
+Import at [vercel.com/new](https://vercel.com/new) and add all env vars from `.env.example` in **Settings → Environment Variables**.
 
-| Action | Payer | Method |
-|---|---|---|
-| Event metadata pin | **Organizer** (server wallet) | `SYNAPSE_PRIVATE_KEY` auto-signs server-side |
-| QR code batch manifest | **Organizer** (server wallet) | Same |
-| Badge metadata pin | **Organizer** (server wallet) | Background, non-blocking |
-| AI verification artifact | **Organizer** (server wallet) | Same |
-| Badge claim on Flow | **Attendee** | 3 FLOW via FCL wallet popup |
+> **Required:** `@onflow/fcl` and `@filoz/synapse-sdk` are in `serverExternalPackages` in `next.config.mjs` — this is required for Vercel serverless functions.
 
-Organizers top up the server wallet's deposited USDFC balance from the **Filecoin Billing** tab in the organizer dashboard — connects MetaMask, shows live balance, and deposits via `depositWithPermitAndApproveOperator` in one MetaMask transaction. Low balance warning triggers at < 0.5 USDFC.
+---
+
+## 🛠️ Local Development
+
+```bash
+# Dev server
+npm run dev
+
+# Generate claim codes (CLI)
+npm run generate:codes
+
+# One-time Synapse setup
+node scripts/synapse-setup.mjs
+
+# Verify Filecoin storage
+node scripts/synapse-verify.mjs
+node scripts/synapse-verify.mjs <PieceCID>
+
+# Deploy Firestore rules
+firebase deploy --only firestore:rules
+
+# Flow emulator
+flow emulator start && flow project deploy --network emulator
+```
+
+---
+
+## 🤖 AI Verification
+
+`lib/ai/verification-agent.ts` runs Gemini Flash 2.0 on event photos, scores attendance confidence, hashes the result, pins the artifact to Filecoin, then submits the proof hash on-chain via the oracle account.
+
+The oracle uses a server-side P-256 key (`FLOW_ORACLE_PRIVATE_KEY`) via `elliptic` + `sha3`. It never touches user wallets.
 
 ---
 
@@ -634,6 +562,7 @@ MIT
 - [Flow Blockchain](https://flow.com) — Cadence smart contracts and FCL
 - [Filecoin Synapse SDK](https://docs.filecoin.cloud) — Decentralized storage
 - [Google Gemini](https://ai.google.dev/) — AI vision verification
-- [Firebase](https://firebase.google.com) — Authentication and Firestore
-- [shadcn/ui](https://ui.shadcn.com/) — UI component library
-- [Vercel](https://vercel.com) — Deployment platform
+- [Firebase](https://firebase.google.com) — Auth and Firestore
+- [shadcn/ui](https://ui.shadcn.com/) — UI components
+- [viem](https://viem.sh/) — EVM wallet client
+- [Vercel](https://vercel.com) — Deployment
